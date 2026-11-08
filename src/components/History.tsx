@@ -384,6 +384,25 @@ export function History({
       const targetDate =
         table === "workout_sets" ? editing.row.local_date : editDate;
       store.save(table, d, { ...editing.row, local_date: targetDate });
+      if (
+        table === "workout_sessions" &&
+        targetDate &&
+        targetDate !== editing.row.local_date
+      ) {
+        for (const childTable of ["workout_sets", "cardio_logs"] as const) {
+          for (const child of store.list(childTable)) {
+            if (
+              child.session_id === editing.row.id ||
+              child.data.sessionId === editing.row.id
+            ) {
+              store.save(childTable, child.data, {
+                ...child,
+                local_date: targetDate,
+              });
+            }
+          }
+        }
+      }
       setEditing(null);
       setNotice("Cambios guardados.");
       if (targetDate && targetDate !== date) onDate(targetDate);
@@ -604,18 +623,17 @@ export function History({
               <X size={18} />
             </button>
           </div>
-          {editing.table !== "workout_sets" &&
-            editing.table !== "workout_sessions" && (
-              <label className="field">
-                Fecha
-                <input
-                  type="date"
-                  required
-                  value={editDate}
-                  onChange={(e) => setEditDate(e.target.value)}
-                />
-              </label>
-            )}
+          {editing.table !== "workout_sets" && (
+            <label className="field">
+              Fecha
+              <input
+                type="date"
+                required
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+              />
+            </label>
+          )}
           {editing.table === "food_logs" && (
             <>
               <p>{draft.name}</p>
