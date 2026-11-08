@@ -13,6 +13,7 @@ import {
 } from "@testing-library/react";
 import { Meals, CoffeeCard } from "../src/components/Nutrition";
 import { Workout } from "../src/components/Workout";
+import { History } from "../src/components/History";
 import { FitTrackShell } from "../src/App";
 import { FitStore } from "../src/lib/store";
 import { foods } from "../src/data/nutrition";
@@ -173,5 +174,83 @@ describe("reloj de la aplicación", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("fecha histórica de una sesión", () => {
+  it("mueve sesión, dos series y cardio vinculado sin duplicar sus datos", () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const s = new FitStore("history-qa");
+    const originalDate = "2026-11-09";
+    const nextDate = "2026-11-10";
+    const session = s.save(
+      "workout_sessions",
+      {
+        title: "Upper A de prueba",
+        startedAt: "2026-11-09T20:00:00Z",
+        finishedAt: "2026-11-09T21:00:00Z",
+        notes: "Técnica controlada",
+        exercises: [{ id: "bench", name: "Bench Press" }],
+      },
+      { local_date: originalDate },
+    );
+    const children = [1, 2].map((setNumber) =>
+      s.save(
+        "workout_sets",
+        {
+          exerciseId: "bench",
+          exerciseName: "Bench Press",
+          setNumber,
+          weightLb: 50 + setNumber * 5,
+          reps: 8 + setNumber,
+          completed: true,
+        },
+        { local_date: originalDate, session_id: session.id },
+      ),
+    );
+    const cardio = s.save(
+      "cardio_logs",
+      { kind: "walk", minutes: 20, steps: 1800 },
+      { local_date: originalDate, session_id: session.id },
+    );
+    const originalData = [session, ...children, cardio].map((row) => ({
+      id: row.id,
+      data: { ...row.data },
+    }));
+    const onDate = vi.fn();
+    render(<History store={s} date={originalDate} onDate={onDate} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Editar Upper A de prueba" }),
+    );
+    fireEvent.change(screen.getByLabelText("Fecha", { exact: true }), {
+      target: { value: nextDate },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(onDate).toHaveBeenCalledWith(nextDate);
+    expect(s.list("workout_sessions", originalDate)).toHaveLength(0);
+    expect(s.list("workout_sets", originalDate)).toHaveLength(0);
+    expect(s.list("cardio_logs", originalDate)).toHaveLength(0);
+    expect(s.list("workout_sessions", nextDate)).toHaveLength(1);
+    expect(s.list("workout_sets", nextDate)).toHaveLength(2);
+    expect(s.list("cardio_logs", nextDate)).toHaveLength(1);
+    const moved = [
+      ...s.list("workout_sessions"),
+      ...s.list("workout_sets"),
+      ...s.list("cardio_logs"),
+    ];
+    expect(moved.map((row) => ({ id: row.id, data: row.data }))).toEqual(
+      originalData,
+    );
+    expect(moved.every((row) => row.local_date === nextDate)).toBe(true);
+    expect(
+      s.cache.queue.filter((entry) => entry.table === "workout_sets"),
+    ).toHaveLength(2);
   });
 });
