@@ -93,7 +93,7 @@ export default function Auth() {
           <div className="auth-program">
             <Dumbbell />
             <div>
-              <strong>24 semanas para avanzar</strong>
+              <strong>Entrena a tu ritmo</strong>
               <span>4 días de fuerza · Nutrición flexible · Progreso real</span>
             </div>
             <ArrowUpRight />
@@ -107,14 +107,14 @@ export default function Auth() {
               <br />
               <b>sobre perfección.</b>
             </span>
-            <span className="art-number">01 / 24</span>
+            <span className="art-number">HOY</span>
           </div>
         </section>
         <section className="auth-card card">
           <span className="eyebrow">BIENVENIDO A FITTRACK PR</span>
           <h2>
             {mode === "signup"
-              ? "Comienza tu programa."
+              ? "Comienza a tu ritmo."
               : "Tu siguiente paso empieza aquí."}
           </h2>
           <p className="muted">

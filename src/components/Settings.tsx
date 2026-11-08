@@ -429,7 +429,7 @@ export function Settings({
                 />
               </label>
               <label className="field">
-                Comienzo del programa
+                Inicio del seguimiento
                 <input
                   required
                   type="date"
@@ -472,7 +472,7 @@ export function Settings({
               </label>
             </div>
             <p className="muted small">
-              Programa inicial: 24 semanas. Las fechas de registro usan
+              Tu rutina se repite cada semana, sin fecha límite. Los registros usan
               America/Puerto_Rico.
             </p>
           </div>
