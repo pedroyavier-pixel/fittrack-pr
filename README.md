@@ -1,6 +1,6 @@
 # FitTrack PR
 
-> Estado de esta entrega: implementación compilada y base de datos aplicada. La publicación en GitHub Pages está pendiente porque la conexión rechazó la escritura del código con HTTP 403. También falta configurar la URL de retorno de autenticación desde el panel de Supabase. Ver `docs/VALIDATION.md` para evidencia y comprobaciones pendientes.
+> Estado de esta entrega: código completo publicado y despliegue de GitHub Pages aprobado. Las 21 pruebas y el build pasaron también en GitHub Actions. Falta completar el acceso al panel de Supabase para configurar la URL de retorno del correo y verificar el primer inicio de sesión real. Ver `docs/VALIDATION.md`.
 
 Aplicación personal de entrenamiento, nutrición y progreso en español. React + TypeScript + Vite + Tailwind + Supabase Auth/Postgres/Storage + Recharts. Alojamiento estático en GitHub Pages, con PWA y cola local de sincronización.
 
