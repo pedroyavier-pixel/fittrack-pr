@@ -1,6 +1,6 @@
 # Verificación de FitTrack PR
 
-Estado al 8 de noviembre de 2026. La aplicación está implementada y compila. La base está aplicada. El código completo se está publicando en `pedroyavier-pixel/fittrack-pr` mediante la sesión del navegador; la conexión API devolvió HTTP 403 al escribir. GitHub Pages está configurado para GitHub Actions y HTTPS. El estado final del workflow y Auth se registrará al completar esas comprobaciones.
+Estado al 8 de noviembre de 2026. La aplicación está implementada y compila. La base está aplicada y el código completo está en [pedroyavier-pixel/fittrack-pr](https://github.com/pedroyavier-pixel/fittrack-pr). La sesión del navegador permitió publicarlo después del error HTTP 403 de la conexión API. **GitHub Pages está publicado con HTTPS** en https://pedroyavier-pixel.github.io/fittrack-pr/. El [workflow inicial](https://github.com/pedroyavier-pixel/fittrack-pr/actions/runs/42494152972), commit `92faffd24523088991b686bff361578c03c8c7e3`, terminó con build y deploy exitosos, incluyendo npm test y npm run build. La URL final se abrió y mostró correctamente la interfaz de acceso.
 
 El panel web de Supabase requirió iniciar sesión y ese acceso no se completó. La configuración Site URL/Redirect URLs sigue pendiente. No se afirma que el registro por correo o sus enlaces de retorno ya hayan pasado una prueba real.
 
@@ -9,6 +9,9 @@ El panel web de Supabase requirió iniciar sesión y ese acceso no se completó.
 - `npm test`: 21 pruebas aprobadas (12 de lógica/persistencia y 9 de interfaz).
 - `npm run build`: TypeScript y producción Vite aprobados. El build crea el service worker con precache versionado.
 - `git diff --check`: sin errores de whitespace.
+- GitHub Actions: instalación, 21 pruebas, build, artefacto y despliegue exitosos.
+- URL pública: interfaz de acceso cargada correctamente en Chromium con HTTPS.
+- Verificación final remota: 0 cuentas de prueba RLS en auth.users.
 - Consulta remota: las 15 tablas de `public.fittrack_*` tienen RLS activa.
 - Security Advisor: sin hallazgos en el esquema inicial; detalle en `DATABASE.md`.
 - Menú USDA calculado: 2,095.5–2,103.1 kcal y 169.0–170.5 g de proteína, según el día. Las fuentes y cálculos figuran en `NUTRITION.md`.
@@ -35,14 +38,13 @@ La revisión visual en Chromium se hizo con la interfaz real en un viewport de 3
 | Registro parcial offline sin duplicados | Aprobado con cola durable, recarga y reintentos en servidor simulado |
 | Videos abren | 27 páginas verificadas; reproducción audiovisual completa en Safari pendiente |
 | A no accede a B | Políticas aplicadas; consultar resultado de ejecución de `supabase/tests/rls.sql` en evidencia de base de datos |
-| URL real de GitHub Pages | Pendiente de permiso de escritura / despliegue |
+| URL real de GitHub Pages | Aprobado: deploy exitoso y pantalla de acceso abierta en URL final |
 
 ## Cierre pendiente
 
-1. Confirmar la carga completa del código mediante la sesión del navegador.
-2. Subir el código y observar el workflow hasta despliegue exitoso.
-3. Configurar Site URL y Redirect URLs en Supabase a la URL publicada con barra final.
-4. Crear/confirmar la cuenta desde la app y probar Auth, sincronización entre dos sesiones de navegador y recuperación de red con Supabase real.
-5. Verificar Safari de iPhone, instalación PWA, retorno desde segundo plano y reproducción de videos en el dispositivo.
+1. Completar el acceso seguro al panel de Supabase y configurar Site URL y Redirect URLs a la URL publicada con barra final.
+2. Crear/confirmar la cuenta desde la app y probar Auth, sincronización entre dos sesiones y recuperación de red con Supabase real.
+3. Ejecutar la prueba RLS A/B cuando se confirme la solicitud del servicio; las solicitudes anteriores expiraron sin ejecutar la prueba. No se declara PASS.
+4. Verificar Safari de iPhone, instalación PWA, retorno desde segundo plano y reproducción de videos en el dispositivo.
 
 No están expuestas claves secretas, service_role, contraseñas o sesiones en los archivos entregados. La URL y la clave publishable del proyecto están destinadas al cliente y requieren RLS.
