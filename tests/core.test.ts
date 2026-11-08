@@ -7,6 +7,12 @@ const remote = vi.hoisted(() => ({
   tables: new Map<string, Map<string, any>>(),
   fail: false,
   hold: undefined as undefined | (() => Promise<void>),
+  reads: [] as {
+    table: string;
+    since?: string;
+    cursor?: string;
+    returned: number;
+  }[],
 }));
 vi.mock("../src/lib/client", () => ({
   supabase: {
@@ -19,18 +25,59 @@ vi.mock("../src/lib/client", () => ({
         remote.tables.set(table, rows);
         return { error: null };
       },
-      select: () => ({
-        eq: (_field: string, user: string) => ({
-          order: () => ({
-            range: async (start: number, end: number) => ({
-              data: [...(remote.tables.get(table) || new Map()).values()]
-                .filter((r: any) => r.user_id === user)
-                .slice(start, end + 1),
-              error: null,
-            }),
-          }),
-        }),
-      }),
+      select: () => {
+        let user = "",
+          since: string | undefined,
+          cursor: string | undefined;
+        const orders: string[] = [];
+        const builder = {
+          eq: (_field: string, value: string) => {
+            user = value;
+            return builder;
+          },
+          order: (field: string) => {
+            orders.push(field);
+            return builder;
+          },
+          gte: (_field: string, value: string) => {
+            since = value;
+            return builder;
+          },
+          or: (value: string) => {
+            cursor = value;
+            return builder;
+          },
+          limit: async (limit: number) => {
+            let rows = [
+              ...(remote.tables.get(table) || new Map()).values(),
+            ].filter((r: any) => r.user_id === user);
+            if (since) rows = rows.filter((r: any) => r.updated_at >= since!);
+            if (cursor) {
+              const match = cursor.match(
+                /^updated_at\.gt\.([^,]+),and\(updated_at\.eq\.([^,]+),id\.gt\.([^)]+)\)$/,
+              )!;
+              rows = rows.filter(
+                (r: any) =>
+                  r.updated_at > match[1] ||
+                  (r.updated_at === match[2] && r.id > match[3]),
+              );
+            }
+            rows.sort((a: any, b: any) => {
+              for (const field of orders) {
+                const compared = String(a[field] || "").localeCompare(
+                  String(b[field] || ""),
+                );
+                if (compared) return compared;
+              }
+              return 0;
+            });
+            rows = rows.slice(0, limit);
+            remote.reads.push({ table, since, cursor, returned: rows.length });
+            return { data: structuredClone(rows), error: null };
+          },
+        };
+        return builder;
+      },
     }),
   },
 }));
@@ -40,6 +87,7 @@ beforeEach(() => {
   remote.tables.clear();
   remote.fail = false;
   remote.hold = undefined;
+  remote.reads = [];
   memory.clear();
   vi.stubGlobal("navigator", { onLine: false });
   vi.stubGlobal("localStorage", {
@@ -227,5 +275,95 @@ describe("entrenamiento y recuperación", () => {
     await b.sync();
     expect(b.list("food_logs")).toHaveLength(0);
     expect(b.all("food_logs")[0].deleted_at).toBeTruthy();
+  });
+});
+
+describe("durable cache and incremental history", () => {
+  const row = (id: string, date: string, stamp: string) => ({
+    id,
+    user_id: "a",
+    local_date: date,
+    updated_at: stamp,
+    data: { amount: 100 },
+  });
+  it("bounds synced dated rows to 30 PR calendar days while retaining pending old rows and parents", () => {
+    const today = prDate(),
+      recent = shiftDate(today, -29),
+      old = shiftDate(today, -30);
+    const s = new FitStore("a");
+    const oldSession = row("old-session", old, "2026-01-01T00:00:00Z");
+    s.cache.rows = {
+      food_logs: [
+        row("old", old, "2026-01-01T00:00:00Z"),
+        row("recent", recent, "2026-01-02T00:00:00Z"),
+      ],
+      workout_sessions: [oldSession],
+      user_profiles: [{ id: "profile", user_id: "a", data: { name: "Test" } }],
+    };
+    s.save(
+      "workout_sets",
+      { reps: 8 },
+      { id: "pending-set", session_id: oldSession.id, local_date: old },
+    );
+    const restored = new FitStore("a");
+    expect(restored.list("food_logs").map((r) => r.id)).toEqual(["recent"]);
+    expect(restored.list("user_profiles")).toHaveLength(1);
+    expect(restored.list("workout_sets")[0].id).toBe("pending-set");
+    expect(restored.list("workout_sessions")[0].id).toBe("old-session");
+    expect(restored.cache.queue).toHaveLength(1);
+    expect(s.list("food_logs")).toHaveLength(2);
+  });
+  it("restores full old history from server after reopening, then merges deltas without losing untouched rows", async () => {
+    const today = prDate(),
+      old = shiftDate(today, -90);
+    remote.tables.set(
+      "fittrack_food_logs",
+      new Map([
+        ["old", row("old", old, "2026-01-01T00:00:00Z")],
+        ["new", row("new", today, "2026-01-02T00:00:00Z")],
+      ]),
+    );
+    const first = new FitStore("a");
+    vi.stubGlobal("navigator", { onLine: true });
+    await first.sync();
+    expect(first.list("food_logs")).toHaveLength(2);
+    const reopened = new FitStore("a");
+    expect(reopened.list("food_logs").map((r) => r.id)).toEqual(["new"]);
+    await reopened.sync();
+    expect(reopened.list("food_logs")).toHaveLength(2);
+    const reads = remote.reads.filter((r) => r.table === "fittrack_food_logs");
+    expect(reads.at(-1)?.since).toBeUndefined();
+    remote.tables
+      .get("fittrack_food_logs")!
+      .set("new", {
+        ...row("new", today, "2026-01-03T00:00:00Z"),
+        data: { amount: 185 },
+      });
+    await reopened.sync();
+    expect(reopened.list("food_logs")).toHaveLength(2);
+    expect(
+      reopened.list("food_logs").find((r) => r.id === "new")?.data.amount,
+    ).toBe(185);
+    expect(
+      remote.reads.filter((r) => r.table === "fittrack_food_logs").at(-1)
+        ?.since,
+    ).toBe("2026-01-02T00:00:00Z");
+  });
+  it("paginates equal timestamps by ID and preserves all 1002 rows", async () => {
+    const today = prDate();
+    const rows = Array.from({ length: 1002 }, (_, i) =>
+      row(String(i).padStart(5, "0"), today, "2026-01-01T00:00:00Z"),
+    );
+    remote.tables.set(
+      "fittrack_food_logs",
+      new Map(rows.map((r) => [r.id, r])),
+    );
+    const s = new FitStore("a");
+    vi.stubGlobal("navigator", { onLine: true });
+    await s.sync();
+    expect(s.list("food_logs")).toHaveLength(1002);
+    const pages = remote.reads.filter((r) => r.table === "fittrack_food_logs");
+    expect(pages.map((p) => p.returned)).toEqual([1000, 2]);
+    expect(pages[1].cursor).toContain("id.gt.00999");
   });
 });
