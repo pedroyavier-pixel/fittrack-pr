@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./client";
+import { prDate, shiftDate } from "./time";
 export const tables = [
   "user_profiles",
   "user_goals",
@@ -47,8 +48,10 @@ export function mergeRows(
   local: Row[],
   pending: Pending[],
   table: Table,
+  replace = true,
 ) {
-  const byId = new Map(remote.map((r) => [r.id, r]));
+  const byId = new Map((replace ? [] : local).map((r) => [r.id, r]));
+  for (const r of remote) byId.set(r.id, r);
   for (const r of local)
     if (pending.some((p) => p.table === table && p.row.id === r.id))
       byId.set(r.id, r);
@@ -67,6 +70,9 @@ export class FitStore {
   private timer?: ReturnType<typeof setInterval>;
   private channel?: ReturnType<typeof supabase.channel>;
   private disposed = false;
+  // Intentionally session-only: reopening always restores the complete server history.
+  private watermarks: Partial<Record<Table, string>> = {};
+  private loadedTables = new Set<Table>();
   constructor(userId: string) {
     this.userId = userId;
     try {
@@ -86,7 +92,36 @@ export class FitStore {
     this.listeners.forEach((f) => f());
   }
   persist() {
-    localStorage.setItem(this.key, JSON.stringify(this.cache));
+    const today = prDate();
+    const cutoff = shiftDate(today, -29);
+    const rows: Partial<Record<Table, Row[]>> = {};
+    // Keep the full history in memory and on Supabase; only the durable browser
+    // cache is bounded. Pending changes must survive regardless of their date.
+    for (const table of tables) {
+      const pendingIds = new Set(
+        this.cache.queue.filter((p) => p.table === table).map((p) => p.row.id),
+      );
+      rows[table] = this.all(table).filter(
+        (r) =>
+          !r.local_date ||
+          (r.local_date >= cutoff && r.local_date <= today) ||
+          pendingIds.has(r.id),
+      );
+    }
+    const parentIds = new Set(
+      (rows.workout_sets || []).map((r) => r.session_id).filter(Boolean),
+    );
+    for (const r of rows.cardio_logs || [])
+      if (r.session_id) parentIds.add(r.session_id);
+    rows.workout_sessions = this.all("workout_sessions").filter(
+      (r) =>
+        (rows.workout_sessions || []).some((x) => x.id === r.id) ||
+        parentIds.has(r.id),
+    );
+    localStorage.setItem(
+      this.key,
+      JSON.stringify({ rows, queue: this.cache.queue }),
+    );
   }
   list(table: Table, date?: string) {
     return (this.cache.rows[table] || []).filter(
@@ -172,25 +207,43 @@ export class FitStore {
       }
       for (const table of tables) {
         const remote: Row[] = [];
-        let start = 0;
+        const replace = !this.loadedTables.has(table);
+        const watermark = this.watermarks[table];
+        let cursor: { stamp: string; id: string } | undefined;
         while (true) {
-          const { data, error } = await supabase
+          let query = supabase
             .from(`fittrack_${table}`)
             .select("*")
             .eq("user_id", this.userId)
-            .order("id")
-            .range(start, start + 999);
+            .order("updated_at", { ascending: true })
+            .order("id", { ascending: true });
+          // Inclusive boundary catches simultaneous updates with equal timestamps.
+          if (watermark) query = query.gte("updated_at", watermark);
+          if (cursor)
+            query = query.or(
+              `updated_at.gt.${cursor.stamp},and(updated_at.eq.${cursor.stamp},id.gt.${cursor.id})`,
+            );
+          const { data, error } = await query.limit(1000);
           if (error) throw error;
           remote.push(...data);
           if (data.length < 1000) break;
-          start += 1000;
+          const last = data[data.length - 1] as Row;
+          if (!last.updated_at)
+            throw new Error(
+              "El servidor devolvió un registro sin fecha de actualización.",
+            );
+          cursor = { stamp: last.updated_at, id: last.id };
         }
         this.cache.rows[table] = mergeRows(
           remote,
           this.all(table),
           this.cache.queue,
           table,
+          replace,
         );
+        const newest = remote.at(-1)?.updated_at;
+        if (newest) this.watermarks[table] = newest;
+        this.loadedTables.add(table);
       }
       this.hydrated = true;
       this.lastSync = new Date().toISOString();
