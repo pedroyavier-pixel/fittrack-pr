@@ -28,7 +28,6 @@ import {
   prDate,
   dateLabel,
   weekday,
-  weekNumber,
   shiftDate,
   ZONE,
 } from "./lib/time";
@@ -119,7 +118,6 @@ export function FitTrackShell({
   const date = selected || today;
   const p = profile(store);
   const unit = p.unit === "kg" ? "kg" : "lb";
-  const week = weekNumber(p.startDate || today, today);
   const plan = planFor(store, weekday(date));
   const lib = exerciseLibrary(store);
   const logs = store.list("food_logs", date);
@@ -185,20 +183,12 @@ export function FitTrackShell({
           ))}
         </nav>
         <div className="sidebar-program">
-          <span className="eyebrow">PROGRAMA DE 24 SEMANAS</span>
+          <span className="eyebrow">TU RUTINA DIARIA</span>
           <strong>
-            Pequeños pasos.
+            Un día a la vez.
             <br />
-            Progreso que se queda.
+            A tu ritmo.
           </strong>
-          <div className="progress-bar">
-            <span
-              style={{ width: `${Math.min(100, ((week - 1) / 24) * 100)}%` }}
-            />
-          </div>
-          <small>
-            Semana {week} {week > 24 ? "· continúa a tu ritmo" : "de 24"}
-          </small>
         </div>
         <div className="sidebar-bottom">
           <button onClick={() => changeView("settings")}>
@@ -314,13 +304,7 @@ export function FitTrackShell({
                     {dateLabel(date)} <span>· {clock} AST</span>
                   </p>
                 </div>
-                <div className="week-chip">
-                  <span>SEMANA</span>
-                  <strong>
-                    {String(week).padStart(2, "0")}
-                    <small>/24</small>
-                  </strong>
-                </div>
+
               </div>
             )}
             {view !== "settings" && (
