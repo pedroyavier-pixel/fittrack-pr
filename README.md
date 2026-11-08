@@ -1,6 +1,6 @@
 # FitTrack PR
 
-> Estado de esta entrega: código completo publicado y despliegue de GitHub Pages aprobado. Las 21 pruebas y el build pasaron también en GitHub Actions. Falta completar el acceso al panel de Supabase para configurar la URL de retorno del correo y verificar el primer inicio de sesión real. Ver `docs/VALIDATION.md`.
+> Aplicación publicada en https://pedroyavier-pixel.github.io/fittrack-pr/. Código completo, base de datos y autenticación configurados. Las pruebas de privacidad transaccionales de las 15 tablas están aprobadas. Ver `docs/VALIDATION.md` y `docs/QA.md` para evidencia y alcance de las comprobaciones.
 
 Aplicación personal de entrenamiento, nutrición y progreso en español. React + TypeScript + Vite + Tailwind + Supabase Auth/Postgres/Storage + Recharts. Alojamiento estático en GitHub Pages, con PWA y cola local de sincronización.
 
@@ -20,11 +20,12 @@ Requiere Node 22 o posterior.
 
 ```bash
 npm ci --ignore-scripts
-cp .env.example .env.local
 npm run dev
 npm test
 npm run build
 ```
+
+Para conectar otro proyecto, copia `.env.example` a `.env.local` y reemplaza sus valores. La configuración de este proyecto funciona sin crear ese archivo.
 
 `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` son valores públicos del cliente, protegidos por autenticación y RLS. Nunca uses claves `service_role`, `sb_secret_…`, tokens administrativos ni contraseñas en variables `VITE_…`.
 
@@ -77,9 +78,10 @@ Las tablas son relacionales por propietario y entidades padre/hijo; el contenido
 
 ## Guardado y límites de sincronización
 
-Cada entrada se escribe primero en almacenamiento local por cuenta. La cola usa UUID estables y `upsert`, por lo que reenviar una serie no crea otra copia. Conserva cambios pendientes al perder la conexión o cerrar el navegador. La aplicación sincroniza al volver a estar online, recuperar foco, cada 30 segundos y tras eventos Realtime.
+Cada entrada se escribe primero en almacenamiento local por cuenta. La caché durable conserva los últimos 30 días calendario de Puerto Rico, la configuración y todos los cambios pendientes, incluso si corresponden a fechas anteriores. El historial completo permanece en Supabase y se recupera al abrir con conexión; durante esa sesión se consultan cambios incrementales con paginación por fecha de actualización e identificador. La cola usa UUID estables y `upsert`, por lo que reenviar una serie no crea otra copia. Conserva cambios pendientes al perder la conexión o cerrar el navegador. La aplicación sincroniza al volver a estar online, recuperar foco, cada 30 segundos y tras eventos Realtime.
 
 - Los errores de guardado muestran un aviso y un reintento. No cierres sesión con cambios pendientes.
+- Para consultar fechas anteriores a los 30 días después de reabrir la app, necesitas conexión.
 - El almacenamiento local puede perderse si borras los datos del navegador o el sistema los elimina. Las entradas ya sincronizadas permanecen en Supabase. Exporta JSON o CSV periódicamente.
 - Ediciones simultáneas de **la misma entrada** en dos dispositivos utilizan la última escritura que llega al servidor. Para evitar conflictos, no edites la misma serie o alimento a la vez en ambos.
 - Las fotos necesitan conexión y no se precargan ni comparten públicamente; se consultan mediante URLs firmadas de 15 minutos. Eliminar una medición la oculta mediante tombstone, sin purgar físicamente la foto, para permitir recuperación administrativa.
