@@ -34,7 +34,7 @@ El navegador usa únicamente URL pública y clave **publishable** de Supabase. N
 
 Las 15 tablas tienen RLS activa. `SELECT`, `INSERT`, `UPDATE` y `DELETE` requieren `auth.uid() = user_id`. Las políticas de actualización incluyen `USING` y `WITH CHECK`, por lo que no permiten transferir el propietario. `anon` no tiene permisos sobre las tablas. Las funciones son `SECURITY INVOKER` y fijan `search_path`; no existe una función que omita RLS.
 
-La configuración de autenticación de Supabase debe permitir correo/contraseña y la URL HTTPS publicada en **Authentication → URL Configuration → Site URL / Redirect URLs**. La confirmación de correo y recuperación de contraseña dependen de esa configuración. No se ha modificado la configuración de Auth mediante SQL. Para pruebas reales de entrada, usar el formulario y confirmar el correo recibido; no compartir contraseñas con el asistente.
+La autenticación está configurada: Email habilitado, registro de usuarios habilitado, confirmación del correo activa y acceso anónimo deshabilitado. Site URL y Redirect URLs apuntan a `https://pedroyavier-pixel.github.io/fittrack-pr/`, verificados en el panel. La confirmación de correo y recuperación de contraseña dependen de esa configuración. No se ha modificado la configuración de Auth mediante SQL. Para pruebas reales de entrada, usar el formulario y confirmar el correo recibido; no compartir contraseñas con el asistente.
 
 ## Sincronización y eliminaciones
 
@@ -53,3 +53,9 @@ El esquema se aplicó mediante la migración remota `fittrack_initial_schema`. L
 `supabase/tests/rls.sql` ejecuta pruebas de dos identidades aisladas en una transacción y termina con `ROLLBACK`: acceso propio, bloqueo de lectura/escritura/borrado ajenos, transferencia de propietario, relaciones entre dueños, timestamps y tombstones. No deja cuentas ni registros de prueba. El resultado observado de su ejecución debe constar en la evidencia de QA; la existencia del script por sí sola no significa que haya pasado.
 
 Antes de nuevas migraciones: revisar tablas actuales, aplicar cambios, ejecutar estas pruebas y volver a ejecutar los asesores de seguridad. Nunca editar `auth.users` para configurar autenticación de producción. Habilitar y revisar los respaldos disponibles en el plan de Supabase; conservar además exportaciones personales de la app.
+
+
+La ejecución final de `supabase/tests/rls.sql` devolvió PASS para las 15 tablas: CRUD propio, bloqueo de lectura/escritura/borrado/transferencia ajenos, relaciones por propietario, timestamps y tombstones. La transacción terminó con ROLLBACK.
+
+
+Las pruebas HTTP de Auth y persistencia con clientes independientes finalizaron PASS. Las cuentas desechables se eliminaron y el servidor confirmó 0 restantes; detalles en `QA.md`.
