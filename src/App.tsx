@@ -23,6 +23,7 @@ import {
   Clock3,
 } from "lucide-react";
 import { supabase } from "./lib/client";
+import { disablePush } from "./lib/push";
 import { FitStore, useStore } from "./lib/store";
 import {
   prDate,
@@ -148,6 +149,8 @@ export function FitTrackShell({
       );
       return;
     }
+    try { await disablePush(store.userId); }
+    catch { setNotice("No se pudieron desactivar los avisos. Revisa la conexión antes de cerrar sesión."); return; }
     await supabase.auth.signOut();
   }
   return (
