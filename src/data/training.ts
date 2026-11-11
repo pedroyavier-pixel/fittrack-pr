@@ -13,6 +13,8 @@ export interface Exercise {
   videoUrl: string;
   referenceUrl?: string;
   weightNote?: string;
+  /** Equipo necesario para elegir variantes domésticas; ausente en el catálogo original. */
+  equipment?: string[];
   cues: string[];
   mistakes: string[];
 }
@@ -594,6 +596,132 @@ export const exercises: Exercise[] = [
   },
 ];
 
+// Catálogo doméstico añadido sin cambiar el programa ni los ejercicios originales.
+// Páginas de los proveedores y sus demostraciones verificadas el 11 de noviembre de 2026.
+exercises.push(
+  {
+    id: "chair-squat",
+    name: "Sentadilla a silla",
+    muscles: "Cuádriceps · glúteos · estabilizadores del tronco",
+    sets: 3,
+    minReps: 8,
+    maxReps: 12,
+    trialLb: 0,
+    stepLb: 2.5,
+    bodyweight: true,
+    equipment: ["chair", "bodyweight"],
+    videoUrl:
+      "https://www.csp.org.uk/campaigns-influencing/campaigns/stronger-my-way/i-want-feel-stronger/strengthening-exercises/lower",
+    weightNote:
+      "BW: prueba provisional sin carga añadida. Usa una silla firme, sin ruedas y apoyada contra una pared. Ajusta su altura a tu control; progresa hacia la sentadilla libre solo cuando puedas levantarte y sentarte con estabilidad.",
+    cues: [
+      "Con los pies firmes y separados de forma cómoda, inclina ligeramente el tronco y empuja el suelo para levantarte de la silla.",
+      "Lleva la cadera atrás y vuelve a sentarte lentamente, conservando el control hasta tocar el asiento.",
+    ],
+    mistakes: [
+      "Dejarse caer en el asiento o impulsarse con rebotes.",
+      "Usar una silla inestable, levantar los talones o forzar un recorrido doloroso.",
+    ],
+  },
+  {
+    id: "glute-bridge",
+    name: "Puente de glúteos",
+    muscles: "Glúteos · isquiotibiales · abdomen",
+    sets: 3,
+    minReps: 10,
+    maxReps: 15,
+    trialLb: 0,
+    stepLb: 2.5,
+    bodyweight: true,
+    equipment: ["bodyweight"],
+    videoUrl: ms + "bodyweight-glute-bridge",
+    weightNote:
+      "BW: carga provisional sin resistencia añadida. Prioriza el control y una pausa cómoda arriba antes de considerar lastre; el campo de carga representa solo resistencia externa.",
+    cues: [
+      "Túmbate boca arriba, flexiona las rodillas y apoya ambos pies en una superficie firme.",
+      "Eleva la pelvis contrayendo los glúteos, con las costillas controladas; vuelve al suelo lentamente.",
+    ],
+    mistakes: [
+      "Arquear la espalda baja para elevar más la pelvis.",
+      "Impulsarse con rebotes o dejar que la pelvis gire hacia un lado.",
+    ],
+  },
+  {
+    id: "wall-push-up",
+    name: "Flexión en pared",
+    muscles: "Pectorales · tríceps · deltoides anterior · abdomen",
+    sets: 3,
+    minReps: 6,
+    maxReps: 12,
+    trialLb: 0,
+    stepLb: 2.5,
+    bodyweight: true,
+    equipment: ["wall", "bodyweight"],
+    videoUrl: "https://youtu.be/kmzcmFZ9NyY",
+    referenceUrl:
+      "https://www.southtees.nhs.uk/resources/combined-press-ups/",
+    weightNote:
+      "BW: referencia provisional sin lastre. Ajusta la distancia de los pies para controlar la dificultad. Una futura flexión inclinada requiere una superficie fija que no pueda deslizarse; no añadas peso a la espalda para progresar esta variante.",
+    cues: [
+      "Apoya las manos sobre una pared firme, cerca de la altura y anchura de los hombros, con los pies estables.",
+      "Flexiona los codos acercando el torso a la pared y vuelve empujando, manteniendo cabeza, tronco y pelvis alineados.",
+    ],
+    mistakes: [
+      "Dejar caer la cadera o acercar solo la cabeza a la pared.",
+      "Forzar las muñecas o abrir los codos en un ángulo doloroso.",
+    ],
+  },
+  {
+    id: "dumbbell-row",
+    name: "Remo con mancuerna a un brazo",
+    muscles: "Dorsales · espalda media y alta · bíceps · abdomen",
+    sets: 3,
+    minReps: 8,
+    maxReps: 12,
+    trialLb: 5,
+    stepLb: 2.5,
+    unilateral: true,
+    equipment: ["dumbbell"],
+    videoUrl: ms + "one-arm-dumbbell-row.html",
+    referenceUrl:
+      "https://www.csp.org.uk/campaigns-influencing/campaigns/stronger-my-way/i-want-feel-stronger/strengthening-exercises/upper",
+    weightNote:
+      "5 lb por mancuerna es una carga de prueba provisional y editable; usa menos si lo necesitas. Repeticiones por brazo. Puedes apoyar la mano libre en una superficie firme para ganar estabilidad, sin girar el torso.",
+    cues: [
+      "Con una base estable, flexiona ligeramente las rodillas e inclina el tronco desde la cadera, manteniendo la espalda en una posición cómoda.",
+      "Lleva el codo hacia la cadera y baja la mancuerna con control; completa las mismas repeticiones por cada lado.",
+    ],
+    mistakes: [
+      "Girar el torso o dar tirones para subir una carga excesiva.",
+      "Encoger el hombro hacia la oreja o perder la posición de la espalda.",
+    ],
+  },
+  {
+    id: "dumbbell-rdl",
+    name: "Peso muerto rumano con mancuernas",
+    muscles: "Isquiotibiales · glúteos · erectores espinales · abdomen",
+    sets: 3,
+    minReps: 8,
+    maxReps: 12,
+    trialLb: 5,
+    stepLb: 2.5,
+    equipment: ["dumbbell"],
+    videoUrl: "https://www.youtube.com/watch?v=V8Hdl1FiNt4",
+    referenceUrl:
+      "https://www.nasm.org/resource-center/exercise-library/dumbbell-romanian-deadlift",
+    weightNote:
+      "5 lb por mancuerna es una prueba provisional y editable, no una estimación de tu fuerza. Ensaya la bisagra sin peso si lo necesitas y conserva siempre el mismo criterio de registro por mancuerna.",
+    cues: [
+      "Sujeta las mancuernas cerca de las piernas, flexiona ligeramente las rodillas y lleva la cadera atrás.",
+      "Baja solo hasta donde puedas controlar la espalda y sentir tensión tolerable en los muslos; vuelve extendiendo la cadera sin arquear la zona lumbar.",
+    ],
+    mistakes: [
+      "Redondear la espalda o alejar las mancuernas del cuerpo para intentar llegar al suelo.",
+      "Doblar demasiado las rodillas y convertir la bisagra en una sentadilla.",
+    ],
+  },
+);
+
 export const schedule: WorkoutDay[] = [
   { day: 0, title: "Descanso", type: "rest", exerciseIds: [], walkMinutes: 0 },
   {
@@ -706,6 +834,28 @@ export function recommendLoad(
       Number.isFinite(s.reps) &&
       s.reps > 0,
   );
+  // Estas variantes domésticas progresan por ejecución o dificultad, no por lastre.
+  if (["chair-squat", "glute-bridge", "wall-push-up"].includes(exercise.id)) {
+    const needsEasierVariant = valid.some(
+      (s) =>
+        s.techniqueGood === false ||
+        (s.reps < exercise.minReps && s.rir != null && s.rir <= 1),
+    );
+    const progression =
+      exercise.id === "wall-push-up"
+        ? "Mejora primero el control, el recorrido cómodo y las repeticiones. Cuando completes todas las series con técnica estable y margen, puedes alejar ligeramente los pies de la pared; acércalos si necesitas facilitar el movimiento."
+        : exercise.id === "chair-squat"
+          ? "Mejora el control al sentarte y levantarte y añade repeticiones dentro del rango. Ajusta la altura de una silla firme para conservar un recorrido cómodo y estable."
+          : "Mejora el control de la pelvis, una pausa cómoda arriba y las repeticiones dentro del rango, conservando un recorrido que puedas realizar sin arquear la espalda.";
+    return {
+      weightLb: 0,
+      action: valid.length ? "maintain" : "trial",
+      reason: needsEasierVariant
+        ? "Mantén BW. Usa una variante más fácil o un recorrido menor hasta recuperar una técnica estable. " + progression
+        : "Mantén BW como referencia. " + progression,
+      provisional: !valid.length,
+    };
+  }
   if (!valid.length)
     return {
       weightLb: exercise.trialLb,

@@ -7,6 +7,7 @@ import {
   Save,
   Trash2,
 } from "lucide-react";
+import { GuideInformation } from "./Onboarding";
 import { PushSettings } from "./PushSettings";
 import { FitStore, seedId } from "../lib/store";
 import {
@@ -68,9 +69,11 @@ function exerciseDrafts(store: FitStore) {
 export function Settings({
   store,
   onClose,
+  onPersonalize,
 }: {
   store: FitStore;
   onClose: () => void;
+  onPersonalize?: () => void;
 }) {
   const [tab, setTab] = useState<"profile" | "workout" | "menu">("profile");
   const [p, setP] = useState(() => ({ ...profile(store) }));
@@ -115,12 +118,15 @@ export function Settings({
     if (
       !p.name?.trim() ||
       !validDate(p.startDate) ||
-      !positive(Number(p.initialWeightLb))
+      (p.initialWeightLb !== null &&
+        p.initialWeightLb !== "" &&
+        !positive(Number(p.initialWeightLb)))
     ) {
       setError("Revisa el nombre, la fecha inicial y el peso.");
       return;
     }
     if (
+      g.trackingEnabled !== false &&
       !(["kcal", "protein", "carbs", "fat"] as const).every((k) =>
         positive(Number(g[k])),
       )
@@ -136,7 +142,10 @@ export function Settings({
           ...current?.data,
           ...p,
           name: p.name.trim(),
-          initialWeightLb: Number(p.initialWeightLb),
+          initialWeightLb:
+            p.initialWeightLb === null || p.initialWeightLb === ""
+              ? null
+              : Number(p.initialWeightLb),
           unit,
         },
         { id: current?.id || seedId(store.userId, "profile") },
@@ -412,6 +421,25 @@ export function Settings({
           {message}
         </p>
       )}
+      {tab === "profile" && (
+        <section className="card stack">
+          <h2>Tu guía personal</h2>
+          <p>
+            Entrenamiento según tus respuestas y comidas sugeridas, sin dieta
+            prescrita ni plazo obligatorio.
+          </p>
+          {onPersonalize && (
+            <button
+              type="button"
+              className="btn primary"
+              onClick={onPersonalize}
+            >
+              Personalizar mi guía
+            </button>
+          )}
+          <GuideInformation />
+        </section>
+      )}
       {tab === "profile" && <PushSettings userId={store.userId} />}
       {tab === "profile" && (
         <form className="stack" onSubmit={saveProfile}>
@@ -456,17 +484,23 @@ export function Settings({
                 </select>
               </label>
               <label className="field">
-                Peso inicial ({unit})
+                Peso inicial ({unit}, opcional)
                 <input
-                  required
                   type="number"
                   min="0.1"
                   step="any"
-                  value={fromLb(Number(p.initialWeightLb), unit)}
+                  value={
+                    p.initialWeightLb === null || p.initialWeightLb === ""
+                      ? ""
+                      : fromLb(Number(p.initialWeightLb), unit)
+                  }
                   onChange={(e) => {
                     setP({
                       ...p,
-                      initialWeightLb: toLb(Number(e.target.value), unit),
+                      initialWeightLb:
+                        e.target.value === ""
+                          ? null
+                          : toLb(Number(e.target.value), unit),
                     });
                     touch();
                   }}
@@ -474,51 +508,69 @@ export function Settings({
               </label>
             </div>
             <p className="muted small">
-              Tu rutina se repite cada semana, sin fecha límite. Los registros usan
-              America/Puerto_Rico.
+              Tu rutina se repite cada semana, sin fecha límite. Los registros
+              usan America/Puerto_Rico.
             </p>
           </div>
           <div className="card stack">
             <h2>Objetivos diarios</h2>
             <p className="muted">
-              La ingesta inicial es una referencia de prueba. Ajusta según el
-              seguimiento de varias semanas.
+              FitTrack no calcula ni prescribe tus necesidades nutricionales.
+              Puedes registrar alimentos sin objetivos; si deseas usar
+              referencias numéricas, defínelas tú con orientación profesional.
             </p>
-            <div className="grid2">
-              {(["kcal", "protein", "carbs", "fat"] as const).map(
-                (key, index) => (
-                  <label className="field" key={key}>
-                    {
-                      [
-                        "Calorías (kcal)",
-                        "Proteína (g)",
-                        "Carbohidratos (g)",
-                        "Grasas (g)",
-                      ][index]
-                    }
-                    <input
-                      required
-                      type="number"
-                      min="0.1"
-                      step="0.1"
-                      value={g[key]}
-                      onChange={(e) => {
-                        setG({ ...g, [key]: Number(e.target.value) });
-                        touch();
-                      }}
-                    />
-                  </label>
-                ),
-              )}
-            </div>
-            <p className="muted small">
-              Tus macros equivalen aproximadamente a{" "}
-              {Math.round(
-                g.protein * 4 + g.carbs * 4 + g.fat * 9,
-              ).toLocaleString("es-PR")}{" "}
-              kcal. El objetivo calórico se configura por separado. La actividad
-              física no descuenta calorías del objetivo.
-            </p>
+            <label className="guide-check">
+              <input
+                type="checkbox"
+                checked={g.trackingEnabled !== false}
+                onChange={(e) => {
+                  setG({ ...g, trackingEnabled: e.target.checked });
+                  touch();
+                }}
+              />
+              <span>
+                Usar objetivos numéricos definidos por mí o por un profesional.
+              </span>
+            </label>
+            {g.trackingEnabled !== false && (
+              <div className="grid2">
+                {(["kcal", "protein", "carbs", "fat"] as const).map(
+                  (key, index) => (
+                    <label className="field" key={key}>
+                      {
+                        [
+                          "Calorías (kcal)",
+                          "Proteína (g)",
+                          "Carbohidratos (g)",
+                          "Grasas (g)",
+                        ][index]
+                      }
+                      <input
+                        required
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={g[key]}
+                        onChange={(e) => {
+                          setG({ ...g, [key]: Number(e.target.value) });
+                          touch();
+                        }}
+                      />
+                    </label>
+                  ),
+                )}
+              </div>
+            )}
+            {g.trackingEnabled !== false && (
+              <p className="muted small">
+                Tus macros equivalen aproximadamente a{" "}
+                {Math.round(
+                  g.protein * 4 + g.carbs * 4 + g.fat * 9,
+                ).toLocaleString("es-PR")}{" "}
+                kcal. El objetivo calórico se configura por separado. La
+                actividad física no descuenta calorías del objetivo.
+              </p>
+            )}
           </div>
           <button type="submit" className="btn primary">
             <Save size={18} />

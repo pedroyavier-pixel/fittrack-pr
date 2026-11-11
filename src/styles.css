@@ -2074,3 +2074,119 @@ summary {
     animation: none !important;
   }
 }
+
+.onboarding-page {
+  max-width: 850px;
+  margin: 0 auto;
+  padding: 30px 22px 70px;
+}
+.onboarding-page h1 {
+  font-size: clamp(1.8rem, 5vw, 2.8rem);
+  line-height: 1.15;
+}
+.onboarding-steps {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.onboarding-steps span {
+  color: var(--muted, #97a9ae);
+  padding: 8px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+.onboarding-steps .active {
+  background: #a8e6cf;
+  color: #11251e;
+}
+.guide-check {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  line-height: 1.6;
+}
+.guide-check input,
+.guide-days input {
+  width: 20px;
+  height: 20px;
+  accent-color: #a8e6cf;
+  flex-shrink: 0;
+}
+.guide-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  border: 1px solid #2b4147;
+  border-radius: 16px;
+  padding: 16px;
+}
+.guide-days legend {
+  padding: 0 8px;
+}
+.guide-days label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 12px;
+  background: #111d23;
+  cursor: pointer;
+}
+.guide-days .selected {
+  background: #214b40;
+  color: #c7ffe9;
+}
+.guide-week {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.guide-week > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid #2b4147;
+  border-radius: 14px;
+  padding: 15px;
+}
+.guide-week small {
+  color: #97a9ae;
+}
+.guide-information summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+.guide-information[open] summary {
+  margin-bottom: 20px;
+}
+.guide-information p,
+.onboarding-page li {
+  line-height: 1.65;
+}
+.guide-information a {
+  color: #a8e6cf;
+  text-decoration: underline;
+}
+.guide-information h3 {
+  margin-top: 10px;
+}
+@media (max-width: 600px) {
+  .guide-week {
+    grid-template-columns: 1fr;
+  }
+  .onboarding-page .section-title {
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .onboarding-page {
+    padding: 20px 15px 50px;
+  }
+  .onboarding-page .card {
+    padding: 20px;
+  }
+}
