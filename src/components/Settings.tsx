@@ -7,6 +7,7 @@ import {
   Save,
   Trash2,
 } from "lucide-react";
+import { PushSettings } from "./PushSettings";
 import { FitStore, seedId } from "../lib/store";
 import {
   profile,
@@ -411,6 +412,7 @@ export function Settings({
           {message}
         </p>
       )}
+      {tab === "profile" && <PushSettings userId={store.userId} />}
       {tab === "profile" && (
         <form className="stack" onSubmit={saveProfile}>
           <div className="card stack">
