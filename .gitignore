@@ -9,3 +9,5 @@ dist/
 .qa/
 
 supabase/.temp/
+
+qa-guide.html

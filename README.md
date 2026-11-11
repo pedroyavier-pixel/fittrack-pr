@@ -107,3 +107,26 @@ El servidor comprueba los días de fuerza (por defecto lunes, martes, jueves y v
 La función `supabase/functions/fittrack-push` verifica el JWT del usuario para las pruebas y un secreto del servidor para cron. La verificación JWT de la pasarela está desactivada porque la autenticación se hace dentro de la función; las solicitudes anónimas son rechazadas. La tabla `fittrack_push_config` y las entregas son accesibles únicamente desde el servidor. El navegador y este repositorio solo contienen la clave VAPID pública. No exportes la clave privada, el token de cron ni las suscripciones de dispositivos. En instalaciones nuevas, genera tu propio par ECDSA P-256, guárdalo en la configuración privada y actualiza la clave pública de `src/lib/push.ts`. Las pruebas SQL nuevas están en `supabase/tests/push.sql`.
 
 Los mensajes Web Push no llevan datos personales ni contenido: el service worker muestra el texto localmente. Los servidores push de Apple/Google/Mozilla reciben únicamente una solicitud autenticada con VAPID. La entrega real debe verificarse en cada teléfono con el botón de prueba.
+
+
+## Guía personalizada por cuenta
+
+Las cuentas nuevas completan un cuestionario de opciones cerradas y revisan su propuesta antes de guardarla. Las cuentas existentes pueden abrir **Hoy → Personalizar mi guía** o **Ajustes → Perfil y objetivos → Personalizar mi guía**. La rutina personal y el historial existentes se conservan hasta confirmar un cambio.
+
+El motor local `src/lib/personalization.ts` usa reglas explícitas: meta, experiencia, actividad diaria, equipo, días elegidos y tiempo por sesión. La edad y un aviso general sobre necesidad de adaptación determinan el alcance; no se solicitan diagnósticos. El peso es voluntario y no se usa para calcular fuerza, un déficit ni metas de peso. El horizonte deseado no genera una cuenta regresiva ni una promesa de resultados. Las referencias están en la interfaz: ACSM 2026, OMS y Harvard. Respaldan principios generales; no representan una validación clínica de cada rutina ni una evaluación profesional.
+
+La versión actual orienta a adultos. En menores de edad o cuando hay dudas o necesidad de adaptación profesional, mantiene registro manual y fuentes generales sin generar una rutina. Si hay necesidades alimentarias clínicas, no genera menú. El catálogo doméstico incluye demostraciones verificadas de CSP, NHS, NASM y Muscle & Strength. Sin resistencia externa se explicita la limitación para entrenar espalda; no se presenta como un programa completo para todos los objetivos.
+
+`src/data/mealSuggestions.ts` ofrece ideas editables de siete días, con ingredientes separados, porciones ilustrativas, preferencias variadas/vegetarianas/vegetales y exclusiones de catálogo. No prescribe dieta, calorías ni suficiencia nutricional. Los filtros no certifican ausencia de alérgenos o contacto cruzado. La variedad vegetal es limitada por el catálogo y se informa en pantalla. El café con leche permanece en el plan original de las cuentas que ya lo tenían; no se impone a las demás.
+
+Las cuentas nuevas registran consumo sin un objetivo numérico asignado. Pueden activar referencias numéricas propias o de un profesional en Ajustes. Los objetivos ya configurados permanecen. Los registros guardan el estado del objetivo de ese momento y siguen mostrando sus snapshots históricos.
+
+La aplicación guarda el conjunto de la nueva guía una vez en la cola local, con rollback si falla el almacenamiento. Se sincroniza después con UUID estables y las mismas políticas RLS por propietario; actualiza también las relaciones de los planes. Nunca reescribe sesiones iniciadas, series completadas, consumos ni mediciones anteriores. Al cerrar sesión con la cola vacía se elimina la copia local de esa cuenta y su temporizador, manteniendo los datos del servidor.
+
+### Privacidad y límites
+
+Las respuestas están en `fittrack_user_profiles.data.personalization`, protegidas por las políticas de propietario existentes. No se envían a ningún servicio de IA ni se publican en GitHub. Se utiliza HTTPS y almacenamiento privado para fotos, pero no cifrado de extremo a extremo ni cifrado adicional de la caché del navegador. Administradores autorizados y el proveedor de infraestructura pueden tener acceso técnico. Ningún sistema ofrece seguridad absoluta. No se afirma cumplimiento de una norma legal o certificación sanitaria específica.
+
+El usuario puede editar respuestas y exportar sus registros. No se añade publicidad ni intercambio entre cuentas. Los datos pendientes sin sincronizar dependen de la conservación del almacenamiento del dispositivo.
+
+Antes de abrir el registro a público externo, valida el envío real de confirmaciones a direcciones ajenas al equipo de Supabase y configura SMTP propio si corresponde. El servicio de correo integrado de Supabase restringe destinatarios y no está destinado a producción; ver https://supabase.com/docs/guides/auth/auth-smtp. No se deshabilita la confirmación del correo para evitar esta limitación. Esta entrega verifica el cuestionario y el guardado con datos de prueba, no la entrega de correo a una nueva cuenta externa.
