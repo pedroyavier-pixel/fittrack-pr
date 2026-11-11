@@ -94,7 +94,7 @@ export default function Auth() {
             <Dumbbell />
             <div>
               <strong>Entrena a tu ritmo</strong>
-              <span>4 días de fuerza · Nutrición flexible · Progreso real</span>
+              <span>Guía adaptable · Comidas sugeridas · Registro privado</span>
             </div>
             <ArrowUpRight />
           </div>
@@ -118,7 +118,8 @@ export default function Auth() {
               : "Tu siguiente paso empieza aquí."}
           </h2>
           <p className="muted">
-            Entra para guardar y sincronizar tus registros de forma privada.
+            Entra para crear tu guía y guardar tus registros. FitTrack orienta;
+            no sustituye a un entrenador, nutricionista ni profesional de salud.
           </p>
           <div className="segmented">
             <button

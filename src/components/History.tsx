@@ -138,6 +138,7 @@ function relativeGoal(store: FitStore, rows: Row[]) {
     carbs: num(goal.carbs) || 210,
     fat: num(goal.fat) || 64,
     historical: !!snapshot,
+    trackingEnabled: goal.trackingEnabled !== false,
   };
 }
 function nutrientTotals(rows: Row[]) {
@@ -791,19 +792,22 @@ export function History({
             <p>
               Grasas <strong>{round(totals.fat)} g</strong>
               <br />
-              Diferencia{" "}
-              <strong>
-                {totals.kcal - goal.kcal > 0 ? "+" : ""}
-                {Math.round(totals.kcal - goal.kcal)} kcal
-              </strong>
+              {goal.trackingEnabled && (
+                <>
+                  Diferencia{" "}
+                  <strong>
+                    {totals.kcal - goal.kcal > 0 ? "+" : ""}
+                    {Math.round(totals.kcal - goal.kcal)} kcal
+                  </strong>
+                </>
+              )}
             </p>
           </div>
           <p className="muted">
-            {goal.historical
-              ? "Objetivo guardado con el registro"
-              : "Objetivo actual"}
-            : {goal.kcal} kcal. Solo se incluye lo que confirmaste como
-            consumido.
+            {goal.trackingEnabled
+              ? `${goal.historical ? "Objetivo guardado con el registro" : "Objetivo actual"}: ${goal.kcal} kcal.`
+              : "Sin objetivo numérico para este registro."}{" "}
+            Solo se incluye lo que confirmaste como consumido.
           </p>
           {!foods.length && (
             <p className="empty">No hay alimentos registrados en esta fecha.</p>

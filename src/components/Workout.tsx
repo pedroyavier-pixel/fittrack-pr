@@ -1099,7 +1099,7 @@ function CardioCard({
   plan: Record<string, any>;
 }) {
   const [kind, setKind] = useState("walk");
-  const [minutes, setMinutes] = useState(String(plan.walkMinutes || 20));
+  const [minutes, setMinutes] = useState(String(plan.walkMinutes ?? 20));
   const [distance, setDistance] = useState("");
   const [steps, setSteps] = useState("");
   const [rounds, setRounds] = useState(String(plan.rope?.rounds || 5));
@@ -1120,7 +1120,7 @@ function CardioCard({
         String(
           kind === "mobility"
             ? plan.mobilityMinutes || 10
-            : plan.walkMinutes || 20,
+            : (plan.walkMinutes ?? 20),
         ),
       );
   }, [date, kind, dirty, editing]);

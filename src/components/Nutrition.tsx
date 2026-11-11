@@ -21,6 +21,7 @@ import {
   goals,
 } from "../lib/model";
 import { weekday, dateLabel } from "../lib/time";
+import { mealSuggestionGuidance } from "../data/mealSuggestions";
 import { starterRecipes, type Food, type MealItem } from "../data/nutrition";
 export function NutritionBars({
   store,
@@ -33,6 +34,31 @@ export function NutritionBars({
 }) {
   const n = sumNutrition(store.list("food_logs", date));
   const g = goals(store);
+  if (g.trackingEnabled === false)
+    return (
+      <section className="card nutrition-panel">
+        <div className="section-title">
+          <span className="eyebrow">CONSUMO REGISTRADO</span>
+          <span className="badge">Sin objetivo numérico</span>
+        </div>
+        <div className="calorie-value">
+          <strong>{Math.round(n.kcal).toLocaleString("es-PR")}</strong>
+          <span>kcal registradas</span>
+        </div>
+        <div className="macros">
+          {(["protein", "carbs", "fat"] as const).map((key, i) => (
+            <div className="macro" key={key}>
+              <span>{["Proteína", "Carbohidratos", "Grasas"][i]}</span>
+              <b>{Math.round(n[key])} g</b>
+            </div>
+          ))}
+        </div>
+        <p className="muted small">
+          Un registro de lo consumido, sin dieta ni calorías asignadas. Puedes
+          configurar tus propias referencias en Ajustes.
+        </p>
+      </section>
+    );
   const percent = (n.kcal / g.kcal) * 100;
   return (
     <section className={`card nutrition-panel ${compact ? "compact" : ""}`}>
@@ -182,6 +208,11 @@ export function CoffeeCard({ store, date }: { store: FitStore; date: string }) {
       saving.current = false;
     }
   }
+  if (
+    store.list("user_profiles")[0]?.data.personalization &&
+    !coffeePlan.length
+  )
+    return null;
   return (
     <div className="coffee-card">
       <span className="coffee-icon">
@@ -390,6 +421,24 @@ export function Meals({
       )}
       {view === "plan" ? (
         <>
+          {store.list("user_profiles")[0]?.data.personalization && (
+            <section className="notice">
+              <strong>Menú sugerido, no una dieta.</strong>{" "}
+              {mealSuggestionGuidance.description}
+              <br />
+              {mealSuggestionGuidance.exclusions}
+              {store.list("user_profiles")[0]?.data.personalization
+                ?.preference === "plant" && (
+                <p>{mealSuggestionGuidance.limitations}</p>
+              )}
+              {!meals.length && (
+                <p>
+                  No se genera menú automático cuando has indicado que necesitas
+                  orientación profesional. Puedes registrar lo que consumes.
+                </p>
+              )}
+            </section>
+          )}
           <CoffeeCard store={store} date={date} />
           <div className={preview ? "meal-grid" : "meal-grid full"}>
             {meals.map((meal, mi) => {
