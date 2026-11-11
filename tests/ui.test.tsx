@@ -16,6 +16,8 @@ import { Workout } from "../src/components/Workout";
 import { History } from "../src/components/History";
 import { FitTrackShell } from "../src/App";
 import { FitStore } from "../src/lib/store";
+import { initialize } from "../src/lib/model";
+import { initialAnswers, applyGuide } from "../src/lib/personalization";
 import { foods } from "../src/data/nutrition";
 vi.mock("../src/lib/client", () => ({ supabase: {} }));
 beforeEach(() => {
@@ -25,6 +27,10 @@ beforeEach(() => {
     value: false,
   });
   vi.stubGlobal("confirm", () => true);
+  Object.defineProperty(window, "scrollTo", {
+    configurable: true,
+    value: vi.fn(),
+  });
 });
 afterEach(() => cleanup());
 function StoreMeals({ store, date }: { store: FitStore; date: string }) {
@@ -150,6 +156,14 @@ describe("reloj de la aplicación", () => {
       const s = new FitStore("clock-qa");
       s.hydrated = true;
       s.start = () => () => {};
+      s.save("user_profiles", { name: "Prueba", onboardingRequired: false });
+      s.save("user_goals", {
+        kcal: 2100,
+        protein: 170,
+        carbs: 210,
+        fat: 64,
+        trackingEnabled: true,
+      });
       s.save(
         "food_logs",
         { kcal: 100, protein: 10, carbs: 10, fat: 2 },
@@ -252,5 +266,60 @@ describe("fecha histórica de una sesión", () => {
     expect(
       s.cache.queue.filter((entry) => entry.table === "workout_sets"),
     ).toHaveLength(2);
+  });
+});
+
+describe("entrada a la guía por cuenta", () => {
+  it("una cuenta nueva debe revisar el alcance antes de ver una rutina", () => {
+    const s = new FitStore("new-onboarding");
+    s.hydrated = true;
+    s.start = () => () => {};
+    initialize(s);
+    render(<FitTrackShell userId={s.userId} testStore={s} />);
+    expect(
+      screen.getByRole("heading", { name: "Empecemos con calma." }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("progressbar", { name: "Calorías consumidas" }),
+    ).toBeNull();
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "¿En qué grupo de edad estás?" }),
+      { target: { value: "under18" } },
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Entiendo el alcance/ }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(
+      screen.getByRole("button", { name: "Usar solo registro manual" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Guardar y usar esta guía" }),
+    ).toBeNull();
+  });
+  it("una cuenta configurada registra consumo sin heredar las calorías ni el café del perfil original", () => {
+    const s = new FitStore("new-guide-ready");
+    s.hydrated = true;
+    s.start = () => () => {};
+    initialize(s);
+    applyGuide(s, {
+      ...initialAnswers,
+      age: "30-49",
+      activity: "sedentary",
+      experience: "new",
+      goal: "health",
+      equipment: "dumbbells",
+      professionalSupport: "no",
+      consent: true,
+      days: [1, 4],
+      excluded: ["dairy"],
+    });
+    render(<FitTrackShell userId={s.userId} testStore={s} />);
+    expect(screen.getByText("Sin objetivo numérico")).toBeTruthy();
+    expect(
+      screen.queryByRole("progressbar", { name: "Calorías consumidas" }),
+    ).toBeNull();
+    expect(screen.queryByText("Tu café de todos los días")).toBeNull();
+    expect(s.list("user_goals")[0].data.kcal).toBe(0);
   });
 });
