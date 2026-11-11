@@ -25,13 +25,7 @@ import {
 import { supabase } from "./lib/client";
 import { disablePush } from "./lib/push";
 import { FitStore, useStore } from "./lib/store";
-import {
-  prDate,
-  dateLabel,
-  weekday,
-  shiftDate,
-  ZONE,
-} from "./lib/time";
+import { prDate, dateLabel, weekday, shiftDate, ZONE } from "./lib/time";
 import {
   profile,
   goals,
@@ -41,6 +35,7 @@ import {
   sumNutrition,
 } from "./lib/model";
 import Auth from "./components/Auth";
+import { Onboarding, GuideInformation } from "./components/Onboarding";
 import { Meals, NutritionBars } from "./components/Nutrition";
 const Workout = lazy(() =>
   import("./components/Workout").then((m) => ({ default: m.Workout })),
@@ -96,6 +91,7 @@ export function FitTrackShell({
     [userId, testStore],
   );
   useStore(store);
+  const [customizing, setCustomizing] = useState(false);
   const [view, setView] = useState<View>("today");
   const [now, setNow] = useState(new Date());
   const [selected, setSelected] = useState<string>();
@@ -149,10 +145,47 @@ export function FitTrackShell({
       );
       return;
     }
-    try { await disablePush(store.userId); }
-    catch { setNotice("No se pudieron desactivar los avisos. Revisa la conexión antes de cerrar sesión."); return; }
-    await supabase.auth.signOut();
+    try {
+      await disablePush(store.userId);
+    } catch {
+      setNotice(
+        "No se pudieron desactivar los avisos. Revisa la conexión antes de cerrar sesión.",
+      );
+      return;
+    }
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setNotice("No se pudo cerrar sesión. Inténtalo de nuevo.");
+      return;
+    }
+    localStorage.removeItem(store.key);
+    localStorage.removeItem(`fittrack-rest:${store.userId}`);
   }
+  if (!store.hydrated && !store.list("user_profiles").length)
+    return (
+      <main className="onboarding-page stack">
+        <h1>Preparando tu cuenta…</h1>
+        <p>Necesitamos recuperar tu perfil antes de mostrar tu guía.</p>
+        {store.error && <p className="notice">{store.error}</p>}
+        <button className="btn" onClick={() => void store.sync()}>
+          Reintentar conexión
+        </button>
+      </main>
+    );
+  const needsOnboarding =
+    store.hydrated && p.onboardingRequired && !p.personalization;
+  if (customizing || needsOnboarding)
+    return (
+      <Onboarding
+        store={store}
+        onDone={() => {
+          setCustomizing(false);
+          changeView("today");
+        }}
+        onCancel={needsOnboarding ? undefined : () => setCustomizing(false)}
+        onSignOut={() => void signOut()}
+      />
+    );
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -189,8 +222,7 @@ export function FitTrackShell({
           <span className="eyebrow">TU RUTINA DIARIA</span>
           <strong>
             Un día a la vez.
-            <br />
-            A tu ritmo.
+            <br />A tu ritmo.
           </strong>
         </div>
         <div className="sidebar-bottom">
@@ -291,7 +323,7 @@ export function FitTrackShell({
                   <h1>
                     {view === "today" ? (
                       <>
-                        Vamos a por hoy, <em>{p.name || "Pedro"}.</em>
+                        Vamos a por hoy, <em>{p.name || "Atleta"}.</em>
                       </>
                     ) : view === "workout" ? (
                       "Tu entrenamiento."
@@ -307,7 +339,6 @@ export function FitTrackShell({
                     {dateLabel(date)} <span>· {clock} AST</span>
                   </p>
                 </div>
-
               </div>
             )}
             {view !== "settings" && (
@@ -405,6 +436,28 @@ export function FitTrackShell({
                 ))}
             {view === "today" && (
               <div className="stack dashboard">
+                <section className="card row">
+                  <div>
+                    <span className="eyebrow">TU GUÍA PERSONAL</span>
+                    <p>
+                      {p.personalization
+                        ? "Puedes revisar tus respuestas y adaptar tus próximas sesiones."
+                        : "Personaliza tu entrenamiento según tu meta, equipo y disponibilidad."}
+                    </p>
+                    {p.guideBlocked && (
+                      <p className="notice">
+                        Guía pendiente de orientación profesional. No se ha
+                        generado una rutina automática.
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    className="btn ghost"
+                    onClick={() => setCustomizing(true)}
+                  >
+                    Personalizar mi guía
+                  </button>
+                </section>
                 <div className="dashboard-top">
                   <NutritionBars store={store} date={date} />
                   <section className="card workout-preview">
@@ -527,8 +580,9 @@ export function FitTrackShell({
                 <section className="daily-note">
                   <span className="live-dot" />
                   <p>
-                    Tu meta es constancia. Las calorías del ejercicio no se
-                    descuentan de tu objetivo diario.
+                    {goals(store).trackingEnabled === false
+                      ? "Un día a la vez. Tus registros sirven para observar hábitos; no hay una meta de calorías asignada."
+                      : "Tu meta es constancia. Las calorías del ejercicio no se descuentan de tu objetivo diario."}
                   </p>
                   <span>UN DÍA A LA VEZ ↗</span>
                 </section>
@@ -555,7 +609,11 @@ export function FitTrackShell({
             )}
             {view === "settings" && (
               <>
-                <Settings store={store} onClose={() => changeView("today")} />
+                <Settings
+                  store={store}
+                  onClose={() => changeView("today")}
+                  onPersonalize={() => setCustomizing(true)}
+                />
                 <div className="card mobile-signout">
                   <button className="btn ghost" onClick={signOut}>
                     <LogOut size={18} />
@@ -564,6 +622,11 @@ export function FitTrackShell({
                 </div>
               </>
             )}
+            <p className="muted small">
+              FitTrack es una guía educativa y un registro personal. No
+              sustituye a un entrenador, nutricionista ni profesional de salud.
+              Los resultados varían.
+            </p>
           </Suspense>
         </main>
         <footer className="desktop-footer">
