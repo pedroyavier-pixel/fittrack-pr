@@ -11,15 +11,20 @@ export const defaultGoals = { kcal: 2100, protein: 170, carbs: 210, fat: 64 };
 export function profile(store: FitStore) {
   return (
     store.list("user_profiles")[0]?.data || {
-      name: "Pedro",
+      name: "Atleta",
       startDate: prDate(),
-      initialWeightLb: 190,
+      initialWeightLb: null,
+      onboardingRequired: true,
       unit: "lb",
     }
   );
 }
 export function goals(store: FitStore) {
-  return { ...defaultGoals, ...store.list("user_goals")[0]?.data };
+  return {
+    trackingEnabled: true,
+    ...defaultGoals,
+    ...store.list("user_goals")[0]?.data,
+  };
 }
 export function foodLibrary(store: FitStore): Food[] {
   const custom = store
@@ -83,10 +88,17 @@ export function initialize(store: FitStore) {
     if (!store.list(table).length) store.save(table, data, { id });
   };
   ensure("user_profiles", "profile", {
-    name: "Pedro",
+    name: "Atleta",
     startDate: prDate(),
-    initialWeightLb: 190,
+    initialWeightLb: null,
+    onboardingRequired: true,
     unit: "lb",
   });
-  ensure("user_goals", "goals", defaultGoals);
+  ensure("user_goals", "goals", {
+    kcal: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    trackingEnabled: false,
+  });
 }

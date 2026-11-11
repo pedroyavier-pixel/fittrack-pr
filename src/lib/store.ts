@@ -70,6 +70,7 @@ export class FitStore {
   private timer?: ReturnType<typeof setInterval>;
   private channel?: ReturnType<typeof supabase.channel>;
   private disposed = false;
+  private batching = false;
   // Intentionally session-only: reopening always restores the complete server history.
   private watermarks: Partial<Record<Table, string>> = {};
   private loadedTables = new Set<Table>();
@@ -158,6 +159,7 @@ export class FitStore {
         revision: ++this.revision,
       }),
     };
+    if (this.batching) return row;
     try {
       this.persist();
     } catch {
@@ -170,6 +172,24 @@ export class FitStore {
     this.emit();
     void this.sync();
     return row;
+  }
+  transaction(action: () => void) {
+    if (this.batching) throw new Error("No se pueden anidar cambios de guía.");
+    const before = this.cache,
+      revision = this.revision;
+    this.batching = true;
+    try {
+      action();
+      this.persist();
+    } catch (e) {
+      this.cache = before;
+      this.revision = revision;
+      throw e;
+    } finally {
+      this.batching = false;
+    }
+    this.emit();
+    void this.sync();
   }
   remove(table: Table, row: Row) {
     return this.save(table, row.data, {
