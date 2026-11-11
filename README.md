@@ -96,3 +96,14 @@ Consulta [NUTRITION.md](docs/NUTRITION.md) para alimentos, metodología de cálc
 ## Mantenimiento
 
 Mantén el lockfile y revisa actualizaciones antes de publicarlas. Ejecuta `npm test` y `npm run build` tras cambiar código. Ejecuta las pruebas RLS y Security Advisor tras cambiar la base de datos. Actualiza la documentación nutricional al sustituir datos USDA o etiquetas. Revisa periódicamente que los videos sigan disponibles. Usa backups de Supabase y exportaciones para conservar registros a largo plazo.
+
+
+## Notificaciones directas de FitTrack
+
+En iPhone, añade FitTrack a la pantalla de inicio, ábrela desde el icono y entra en Ajustes → Perfil y objetivos → Recordatorios de entrenamiento. Pulsa Activar notificaciones y permite el aviso de iOS. Puedes enviar un aviso de prueba o desactivar este dispositivo. Se desactivan también al cerrar sesión.
+
+El servidor comprueba los días de fuerza (por defecto lunes, martes, jueves y viernes), a las 17:00 y 20:00 en America/Puerto_Rico. Omite avisos si hay una serie completada, cardio o sesión finalizada en esa fecha. Los registros aún sin sincronizar no son visibles. Cada dispositivo recibe como máximo un aviso por horario y fecha; los endpoints caducados se deshabilitan. iOS puede silenciar o retrasar mensajes por Concentración, conexión o ajustes de notificaciones.
+
+La función `supabase/functions/fittrack-push` verifica el JWT del usuario para las pruebas y un secreto del servidor para cron. La verificación JWT de la pasarela está desactivada porque la autenticación se hace dentro de la función; las solicitudes anónimas son rechazadas. La tabla `fittrack_push_config` y las entregas son accesibles únicamente desde el servidor. El navegador y este repositorio solo contienen la clave VAPID pública. No exportes la clave privada, el token de cron ni las suscripciones de dispositivos. En instalaciones nuevas, genera tu propio par ECDSA P-256, guárdalo en la configuración privada y actualiza la clave pública de `src/lib/push.ts`. Las pruebas SQL nuevas están en `supabase/tests/push.sql`.
+
+Los mensajes Web Push no llevan datos personales ni contenido: el service worker muestra el texto localmente. Los servidores push de Apple/Google/Mozilla reciben únicamente una solicitud autenticada con VAPID. La entrega real debe verificarse en cada teléfono con el botón de prueba.
