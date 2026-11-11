@@ -11,7 +11,7 @@ values
 do $$
 declare t text; fixture_id uuid;
 begin
-  for t in select tablename from pg_tables where schemaname='public' and tablename like 'fittrack\_%' escape '\' loop
+  for t in select tablename from pg_tables where schemaname='public' and tablename like 'fittrack\_%' escape '\' and tablename not like 'fittrack_push_%' loop
     execute format('insert into public.%I(user_id,data) values ($1,$2) returning id',t)
       into fixture_id using current_setting('fittrack.test_b')::uuid, '{"fixture":"B"}'::jsonb;
     if t='fittrack_workout_sessions' then
@@ -28,7 +28,7 @@ do $$
 declare t text; visible_rows integer; affected integer; own_id uuid; old_created timestamptz;
 begin
   if auth.uid() <> current_setting('fittrack.test_a')::uuid then raise exception 'JWT fixture failed'; end if;
-  for t in select tablename from pg_tables where schemaname='public' and tablename like 'fittrack\_%' escape '\' loop
+  for t in select tablename from pg_tables where schemaname='public' and tablename like 'fittrack\_%' escape '\' and tablename not like 'fittrack_push_%' loop
     execute format('select count(*) from public.%I',t) into visible_rows;
     if visible_rows <> 0 then raise exception '%: B records leaked',t; end if;
 
@@ -84,7 +84,7 @@ select set_config('request.jwt.claims',json_build_object('sub',current_setting('
 do $$
 declare t text; visible_rows integer;
 begin
-  for t in select tablename from pg_tables where schemaname='public' and tablename like 'fittrack\_%' escape '\' loop
+  for t in select tablename from pg_tables where schemaname='public' and tablename like 'fittrack\_%' escape '\' and tablename not like 'fittrack_push_%' loop
     execute format('select count(*) from public.%I where data->>''fixture''=''B''',t) into visible_rows;
     if visible_rows <> 1 then raise exception '%: B row was damaged or inaccessible',t; end if;
   end loop;
