@@ -1,3 +1,4 @@
+import {WeekOverview} from "./WeekOverview";
 import {exerciseVariants,variantNotice} from "../data/exerciseVariants";
 import { useEffect, useState, useRef } from "react";
 import {
@@ -240,13 +241,13 @@ export function Workout({ store, date, unit }: WorkoutProps) {
         <div className="card rest-hero">
           <Footprints size={36} />
           <h2>Día de recuperación activa</h2>
-          <p>
-            Caminata rápida de {sessionPlan.walkMinutes} minutos y{" "}
-            {sessionPlan.mobilityMinutes || 10} minutos de movilidad general.
-          </p>
+          <p>{sessionPlan.cardio?.length ? sessionPlan.cardio.map((item:{kind:string;minutes:number})=>`${cardioLabel(item.kind)} suave: ${Math.round(item.minutes*10)/10} min`).join(' · ') : sessionPlan.walkMinutes ? `Caminata suave: ${sessionPlan.walkMinutes} min.` : 'Movimiento cómodo, sin obligación de fuerza.'}{sessionPlan.mobilityMinutes ? ` Movilidad: ${sessionPlan.mobilityMinutes} min.` : ''}</p>
           <p className="muted">No hay entrenamiento de pesas obligatorio.</p>
         </div>
       )}
+      <WeekOverview currentDay={weekday(lockedDate)} plans={schedule.map(base=>({...base,...store.list("workout_plans").find(row=>row.data.day===base.day)?.data}))}/>
+      {sessionPlan.optional && <p className="notice">Este día es opcional y de recuperación. Puedes descansar sin tener que compensarlo en otra sesión.</p>}
+      {(sessionPlan.focus || sessionPlan.rationale) && <section className="card stack" aria-label="Propósito de la sesión"><span className="eyebrow">POR QUÉ ESTE DÍA ES ASÍ</span><h2>{sessionPlan.focus || sessionPlan.title}</h2>{sessionPlan.rationale&&<p>{sessionPlan.rationale}</p>}{sessionPlan.effort&&<p className="muted">{sessionPlan.effort}</p>}</section>}
       {sessionPlan.sessionPhases?.length>0 && <details className="card technique-details"><summary>Distribución de tu sesión</summary><div className="stack">{sessionPlan.sessionPhases.map((phase: {kind:string;label:string;minutes:number},i:number)=><p key={i}><strong>{Math.round(phase.minutes*10)/10} min</strong> · {phase.label}</p>)}<p className="muted small">Tiempos orientativos con descansos incluidos. Ajusta el ritmo a tu técnica y recuperación.</p></div></details>}
       {sessionPlan.conditioning && <ConditioningBlock key={session?.id || "unstarted-conditioning"} store={store} date={lockedDate} plan={sessionPlan} catalog={catalog} session={session} onSessionCreated={setSessionId}/>}
       {sessionPlan.type === "strength" && (
