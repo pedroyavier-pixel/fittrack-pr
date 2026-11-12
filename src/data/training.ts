@@ -1,4 +1,7 @@
-/** Cargas de prueba editables: no son estimaciones de fuerza a partir del peso corporal. */
+import {extraExercises} from "./exerciseVariants";
+import type { CardioPrescription, ConditioningPrescription, SessionPhase, TrainingStyle } from "./conditioning";
+
+/** Catálogo de movimientos. trialLb se conserva sólo para compatibilidad histórica; no asigna cargas en la interfaz. */
 export interface Exercise {
   id: string;
   name: string;
@@ -27,14 +30,18 @@ export interface WorkoutDay {
   walkMinutes: number;
   mobilityMinutes?: number;
   rope?: { rounds: number; work: number; rest: number };
+  cardio?: CardioPrescription[];
+  conditioning?: ConditioningPrescription;
+  style?: TrainingStyle["id"];
+  sessionPhases?: SessionPhase[];
 }
 
 const ms = "https://www.muscleandstrength.com/exercises/";
 const machineNote =
-  "Carga de prueba provisional. Usa la resistencia mínima cómoda; anota la máquina, pues las resistencias no son comparables entre equipos.";
-const dumbbellNote = "Peso por mancuerna; sugerencia provisional y editable.";
+  "Registra el total del selector de la máquina. Si carga discos bilaterales, elige discos por lado; la resistencia base no se asume. Anota el equipo.";
+const dumbbellNote = "Peso por CADA mancuerna / mano. Con dos iguales, la carga externa total es el doble.";
 const barbellNote =
-  "Peso total, incluida la barra; sugerencia provisional y editable. Una barra de técnica más ligera también es válida.";
+  "Introduce los discos por CADA lado y el peso REAL de la barra o Smith. Total = 2 × discos de un lado + barra. No se asume que todas pesan 45 lb.";
 
 export const exercises: Exercise[] = [
   {
@@ -594,6 +601,7 @@ export const exercises: Exercise[] = [
       "Contener la respiración o arquear la espalda para resistir.",
     ],
   },
+  ...extraExercises,
 ];
 
 // Catálogo doméstico añadido sin cambiar el programa ni los ejercicios originales.
@@ -613,7 +621,7 @@ exercises.push(
     videoUrl:
       "https://www.csp.org.uk/campaigns-influencing/campaigns/stronger-my-way/i-want-feel-stronger/strengthening-exercises/lower",
     weightNote:
-      "BW: prueba provisional sin carga añadida. Usa una silla firme, sin ruedas y apoyada contra una pared. Ajusta su altura a tu control; progresa hacia la sentadilla libre solo cuando puedas levantarte y sentarte con estabilidad.",
+      "BW: registra sólo carga externa si la utilizas. Usa una silla firme, sin ruedas y apoyada contra una pared. Ajusta su altura a tu control; progresa hacia la sentadilla libre solo cuando puedas levantarte y sentarte con estabilidad.",
     cues: [
       "Con los pies firmes y separados de forma cómoda, inclina ligeramente el tronco y empuja el suelo para levantarte de la silla.",
       "Lleva la cadera atrás y vuelve a sentarte lentamente, conservando el control hasta tocar el asiento.",
@@ -636,7 +644,7 @@ exercises.push(
     equipment: ["bodyweight"],
     videoUrl: ms + "bodyweight-glute-bridge",
     weightNote:
-      "BW: carga provisional sin resistencia añadida. Prioriza el control y una pausa cómoda arriba antes de considerar lastre; el campo de carga representa solo resistencia externa.",
+      "BW: registra sólo carga externa si la utilizas. Prioriza el control y una pausa cómoda arriba antes de considerar lastre; el campo de carga representa solo resistencia externa.",
     cues: [
       "Túmbate boca arriba, flexiona las rodillas y apoya ambos pies en una superficie firme.",
       "Eleva la pelvis contrayendo los glúteos, con las costillas controladas; vuelve al suelo lentamente.",
@@ -661,7 +669,7 @@ exercises.push(
     referenceUrl:
       "https://www.southtees.nhs.uk/resources/combined-press-ups/",
     weightNote:
-      "BW: referencia provisional sin lastre. Ajusta la distancia de los pies para controlar la dificultad. Una futura flexión inclinada requiere una superficie fija que no pueda deslizarse; no añadas peso a la espalda para progresar esta variante.",
+      "BW: sin lastre obligatorio. Ajusta la distancia de los pies para controlar la dificultad. Una futura flexión inclinada requiere una superficie fija que no pueda deslizarse; no añadas peso a la espalda para progresar esta variante.",
     cues: [
       "Apoya las manos sobre una pared firme, cerca de la altura y anchura de los hombros, con los pies estables.",
       "Flexiona los codos acercando el torso a la pared y vuelve empujando, manteniendo cabeza, tronco y pelvis alineados.",
@@ -686,7 +694,7 @@ exercises.push(
     referenceUrl:
       "https://www.csp.org.uk/campaigns-influencing/campaigns/stronger-my-way/i-want-feel-stronger/strengthening-exercises/upper",
     weightNote:
-      "5 lb por mancuerna es una carga de prueba provisional y editable; usa menos si lo necesitas. Repeticiones por brazo. Puedes apoyar la mano libre en una superficie firme para ganar estabilidad, sin girar el torso.",
+      "Introduce el peso de UNA mancuerna; elige una carga que puedas controlar. Repeticiones por brazo. Puedes apoyar la mano libre en una superficie firme para ganar estabilidad, sin girar el torso.",
     cues: [
       "Con una base estable, flexiona ligeramente las rodillas e inclina el tronco desde la cadera, manteniendo la espalda en una posición cómoda.",
       "Lleva el codo hacia la cadera y baja la mancuerna con control; completa las mismas repeticiones por cada lado.",
@@ -710,7 +718,7 @@ exercises.push(
     referenceUrl:
       "https://www.nasm.org/resource-center/exercise-library/dumbbell-romanian-deadlift",
     weightNote:
-      "5 lb por mancuerna es una prueba provisional y editable, no una estimación de tu fuerza. Ensaya la bisagra sin peso si lo necesitas y conserva siempre el mismo criterio de registro por mancuerna.",
+      "Introduce el peso por CADA mancuerna; no se asigna una carga inicial. Ensaya la bisagra sin peso si lo necesitas y conserva siempre el mismo criterio de registro por mancuerna.",
     cues: [
       "Sujeta las mancuernas cerca de las piernas, flexiona ligeramente las rodillas y lleva la cadera atrás.",
       "Baja solo hasta donde puedas controlar la espalda y sentir tensión tolerable en los muslos; vuelve extendiendo la cadera sin arquear la zona lumbar.",
