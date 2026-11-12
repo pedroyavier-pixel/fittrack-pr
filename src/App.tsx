@@ -1,3 +1,4 @@
+import {NamePrompt} from "./components/NamePrompt";
 import {FrequencyAdvice} from "./components/FrequencyAdvice";
 import {cardioLabel} from "./data/conditioning";
 import { useEffect, useMemo, useState, lazy, Suspense } from "react";
@@ -327,7 +328,7 @@ export function FitTrackShell({
                   <h1>
                     {view === "today" ? (
                       <>
-                        Vamos a por hoy, <em>{p.name || "Atleta"}.</em>
+                        Vamos a por hoy{p.name?.trim() && p.name.trim()!=="Atleta" ? <>, <em>{p.name.trim()}.</em></> : "."}
                       </>
                     ) : view === "workout" ? (
                       "Tu entrenamiento."
@@ -464,6 +465,7 @@ export function FitTrackShell({
                   </button>
                 </section>
                 {!p.guideBlocked && <FrequencyAdvice advice={p.frequencyRecommendation} compact/>}
+                <NamePrompt store={store}/>
                 <div className="dashboard-top">
                   <NutritionBars store={store} date={date} />
                   <section className="card workout-preview">

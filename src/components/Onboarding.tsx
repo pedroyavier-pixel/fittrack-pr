@@ -141,6 +141,7 @@ export function Onboarding({
   const [a, setA] = useState<QuestionnaireAnswers>(() => ({
     ...initialAnswers,
     ...previous,
+    name: store.list("user_profiles")[0]?.data.name && store.list("user_profiles")[0]?.data.name !== "Atleta" ? store.list("user_profiles")[0].data.name : previous?.name || "",
     version: 2,
     days: Array.isArray(previous?.days)
       ? [...previous.days]
@@ -223,6 +224,7 @@ export function Onboarding({
       );
       return;
     }
+    if (step === 1 && !a.name?.trim()) { setError("Escribe tu nombre o el apodo que quieres ver en inicio."); return; }
     if (step === 1 && (!a.sex || !a.activity || !a.experience)) {
       setError("Selecciona tu sexo, actividad diaria y experiencia.");
       return;
@@ -280,6 +282,7 @@ export function Onboarding({
           ? e.message
           : "Faltan respuestas. Vuelve a las preguntas para completarlas.";
     }
+  const nameField = <label className="field">Tu nombre o apodo<input name="given-name" autoComplete="given-name" maxLength={60} required value={a.name || ''} onChange={event=>update('name',event.target.value)} placeholder="¿Cómo quieres que te llamemos?"/><span className="muted small">Lo usaremos para saludarte en inicio. Puedes cambiarlo en Ajustes.</span></label>;
   const title = [
     "Empecemos con calma.",
     "Tu punto de partida.",
@@ -366,6 +369,7 @@ export function Onboarding({
         )}
         {step === 1 && (
           <>
+            {nameField}
             <label className="field">
               Sexo biológico
               <select
@@ -748,6 +752,7 @@ export function Onboarding({
         )}
         {step === 5 && (
           <>
+            {nameField}
             {reviewSaved && <div className="notice"><p>Propuesta actualizada con tus respuestas guardadas. Revisa los cambios antes de aplicarlos; tu programa actual sigue activo hasta que confirmes.</p><button className="btn ghost" onClick={()=>setStep(1)}>Editar mis respuestas</button></div>}
             {preview ? (
               <>
@@ -951,6 +956,7 @@ export function Onboarding({
                   className="btn primary"
                   onClick={() => {
                     try {
+                      if(!a.name?.trim()) { setError("Escribe tu nombre o el apodo que quieres ver en inicio."); return; }
                       applyGuide(store, a);
                       onDone();
                     } catch (e) {

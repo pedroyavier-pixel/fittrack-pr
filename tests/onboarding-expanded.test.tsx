@@ -35,6 +35,7 @@ function scope() {
   next();
 }
 function profile(sex = "female") {
+  fireEvent.change(screen.getByRole("textbox",{name:/Tu nombre o apodo/}),{target:{value:"Alex"}});
   choose("Sexo biológico", sex);
   choose("¿Cómo es tu actividad fuera del entrenamiento?", "standing");
   choose("¿Cuál es tu experiencia actual?", "regular");
@@ -72,7 +73,11 @@ describe("cuestionario ampliado", () => {
     choose("¿Cómo es tu actividad fuera del entrenamiento?", "active");
     choose("¿Cuál es tu experiencia actual?", "new");
     next();
+    expect(screen.getByRole("alert").textContent).toMatch(/nombre/);
+    fireEvent.change(screen.getByRole("textbox",{name:/Tu nombre o apodo/}),{target:{value:"Alex"}});
+    next();
     expect(screen.getByRole("alert").textContent).toMatch(/sexo/);
+    fireEvent.change(screen.getByRole("textbox",{name:/Tu nombre o apodo/}),{target:{value:"Alex"}});
     choose("Sexo biológico", "male");
     next();
     expect(
@@ -277,6 +282,7 @@ describe("cuestionario ampliado", () => {
     );
     next();
     expect(screen.queryByRole("combobox", { name: "Sexo biológico" })).toBeNull();
+    fireEvent.change(screen.getByRole("textbox",{name:/Tu nombre o apodo/}),{target:{value:"Alex"}});
     fireEvent.click(
       screen.getByRole("button", { name: "Usar solo registro manual" }),
     );

@@ -15,7 +15,7 @@ it('distingue disponibilidad y orientación sin modificar el calendario',()=>{
 });
 it('permite revisar un programa mejorado con respuestas guardadas sin aplicarlo antes de confirmar',()=>{
  const store=new FitStore('review-design');
- const a:GuideAnswers={...initialAnswers,version:2,sex:'male',allergyReviewed:true,age:'30-49',activity:'sedentary',experience:'regular',goal:'recomp',equipment:'gym',trainingStyle:'cross_training',cardioChoices:['walk','row'],impactTolerance:'any',cardioAccess:true,days:[1,3,5],minutes:45,professionalSupport:'no',dietaryCare:'no',consent:true};
+ const a:GuideAnswers={...initialAnswers,name:'Alex',version:2,sex:'male',allergyReviewed:true,age:'30-49',activity:'sedentary',experience:'regular',goal:'recomp',equipment:'gym',trainingStyle:'cross_training',cardioChoices:['walk','row'],impactTolerance:'any',cardioAccess:true,days:[1,3,5],minutes:45,professionalSupport:'no',dietaryCare:'no',consent:true};
  applyGuide(store,a);
  const before=JSON.stringify(store.list('workout_plans'));
  const onDone=vi.fn();
