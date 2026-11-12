@@ -106,6 +106,7 @@ export const guideOptions = {
   ],
 } as const;
 export interface GuideAnswers {
+  name?: string;
   version?: number;
   sex?: "male" | "female";
   allergyReviewed?: boolean;
@@ -151,6 +152,7 @@ export const initialAnswers: GuideAnswers = {
   consent: false,
 };
 export function validateAnswers(a: GuideAnswers) {
+  if(a.name!==undefined && (typeof a.name!=="string" || a.name.trim().length>60 || /[\u0000-\u001f\u007f]/.test(a.name))) throw new Error("Usa un nombre o apodo de hasta 60 caracteres.");
   const blocked = a.age === "under18" || a.professionalSupport !== "no";
   for (const key of ["age", "activity", "experience", "goal", "equipment", "horizon", "preference"] as const) {
     if (
@@ -627,7 +629,7 @@ export function applyGuide(store: FitStore, a: GuideAnswers) {
       "user_profiles",
       {
         ...old?.data,
-        name: old?.data.name || "Atleta",
+        name: a.name?.trim() || old?.data.name || "",
         unit: a.unit,
         initialWeightLb:
           old?.data.initialWeightLb ??
