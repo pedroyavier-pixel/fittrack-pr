@@ -323,3 +323,95 @@ describe("entrada a la guía por cuenta", () => {
     expect(s.list("user_goals")[0].data.kcal).toBe(0);
   });
 });
+
+describe("cargas explícitas en el historial", () => {
+  it("edita por mano calculando carga total y conserva un histórico sin convención", () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const s = new FitStore("loads-history-qa");
+    const date = "2026-11-12";
+    const session = s.save(
+      "workout_sessions",
+      {
+        title: "Cargas de prueba",
+        startedAt: date + "T15:00:00Z",
+        finishedAt: date + "T16:00:00Z",
+        exercises: [],
+      },
+      { local_date: date },
+    );
+    const perHand = s.save(
+      "workout_sets",
+      {
+        exerciseId: "dumbbell",
+        exerciseName: "Curl por mano",
+        setNumber: 1,
+        weightLb: 35,
+        enteredWeightLb: 35,
+        loadBasis: "per_hand",
+        barWeightLb: null,
+        totalLoadLb: 70,
+        reps: 10,
+        completed: true,
+      },
+      { local_date: date, session_id: session.id },
+    );
+    const legacy = s.save(
+      "workout_sets",
+      {
+        exerciseId: "legacy",
+        exerciseName: "Serie anterior",
+        setNumber: 1,
+        weightLb: 60,
+        reps: 10,
+        completed: true,
+      },
+      { local_date: date, session_id: session.id },
+    );
+    render(<History store={s} date={date} onDate={vi.fn()} />);
+    expect(screen.getByText(/35 lb por mano · 70 lb totales/)).toBeTruthy();
+    expect(screen.getByText(/1,300 lb · rep/)).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Editar Curl por mano" }),
+    );
+    fireEvent.change(
+      screen.getByRole("spinbutton", { name: "Peso por mano (lb)" }),
+      { target: { value: "40" } },
+    );
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Repeticiones" }), {
+      target: { value: "12" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    const updated = s
+      .list("workout_sets")
+      .find((row) => row.id === perHand.id)!;
+    expect(updated.data).toMatchObject({
+      weightLb: 40,
+      enteredWeightLb: 40,
+      totalLoadLb: 80,
+      loadBasis: "per_hand",
+      reps: 12,
+    });
+    expect(screen.getByText(/1,560 lb · rep/)).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Editar Serie anterior" }),
+    );
+    expect(
+      screen.getByRole("combobox", { name: "Cómo registraste la carga" }),
+    ).toHaveProperty("value", "legacy");
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    const unchanged = s
+      .list("workout_sets")
+      .find((row) => row.id === legacy.id)!;
+    expect(unchanged.data.weightLb).toBe(60);
+    expect(unchanged.data.loadBasis).toBeUndefined();
+    expect(unchanged.data.totalLoadLb).toBeUndefined();
+    expect(s.list("workout_sets")).toHaveLength(2);
+  });
+});
