@@ -9,6 +9,7 @@ import {
 import { FitStore, seedId } from "./store";
 import { prDate } from "./time";
 import { cardioActivities, cardioLabel, conditioningGuidance, conditioningSources, trainingStyles, type CardioPrescription, type ConditioningPrescription, type SessionPhase, type TrainingStyle } from "../data/conditioning";
+import {recommendFrequency,spacedDays,designDays,strengthCandidates,type DayDesign,type FrequencyRecommendation} from './trainingDesign';
 export const guideSources = [
   {
     title: "ACSM · Revisión de entrenamiento de fuerza, 2026",
@@ -26,6 +27,11 @@ export const guideSources = [
     use: "Variedad y calidad de alimentos; no prescribe las calorías ni porciones de esta persona.",
   },
   ...conditioningSources,
+  {
+    title: "CrossFit · Frecuencia según experiencia y recuperación",
+    url: "https://www.crossfit.com/essentials/how-often-should-i-do-crossfit",
+    use: "Empezar con dos o tres sesiones y adaptar la frecuencia a capacidad, aprendizaje y recuperación; cinco días no son un requisito universal ni una regla del entrenamiento cruzado.",
+  },
   {
     title: "Brad Schoenfeld · Science and Development of Muscle Hypertrophy, 3.ª edición",
     url: "https://us.humankinetics.com/products/science-and-development-of-muscle-hypertrophy-3rd-edition",
@@ -422,93 +428,86 @@ function buildModernGuide(a:GuideAnswers){
   if(a.cardioChoices?.includes("adaptive"))warnings.push(conditioningGuidance.adaptive);
   const omitted=(a.cardioChoices||[]).filter(kind=>kind!=="adaptive"&&!chosenCardio.includes(kind));
   if(omitted.length)warnings.push(`Se omiten por impacto o acceso al equipo: ${omitted.map(cardioLabel).join(", ")}. No se sustituyen por actividades que no seleccionaste.`);
-  if(a.equipment==="bodyweight")warnings.push("Sin resistencia externa, esta guía no cubre bien los movimientos de tirón para la espalda. Incorpora resistencia adecuada u orientación para completar el trabajo de fuerza.");
+  if(a.equipment==="bodyweight")warnings.push("Sin resistencia externa, esta guía no cubre bien los movimientos de tirón para la espalda. Incorpora resistencia adecuada u orientación para completar el trabajo de fuerza; no se presenta un tirón sin resistencia como equivalente.");
   if(a.equipment==="walking"&&["strength","muscle","recomp"].includes(a.goal))warnings.push("El entorno elegido ofrece un plan de cardio. Para fuerza o hipertrofia, incorpora trabajo de resistencia con equipo y orientación adecuados.");
   if(a.age==="65+")warnings.push("Incluye equilibrio adaptado y los apoyos que necesites; esta guía no evalúa riesgo de caídas.");
   if(a.dietaryCare==="yes")warnings.push("Las necesidades clínicas, alergias o antecedentes de trastornos alimentarios requieren revisión profesional. No se genera un menú personalizado.");
   if(style==="crossfit")warnings.push("Esta guía propone acondicionamiento básico registrable. Aprende CrossFit y escala sus movimientos con un entrenador; no genera WOD avanzados, levantamientos olímpicos ni habilidades gimnásticas complejas.");
   if(style==="mixed")warnings.push(conditioningGuidance.mixed);
-  const strengthLimit=enduranceFocus?2:["cross_training","mixed","circuit","crossfit"].includes(style)?3:a.goal==="health"?3:4;
-  const strengthDays=blocked||a.equipment==="walking"?[]:chooseStrengthDays(days,Math.min(strengthLimit,days.length));
-  const split=strengthDays.length>=4&&["gym","hybrid"].includes(a.equipment);
-  if(!split&&strengthDays.some(day=>strengthDays.includes((day+1)%7)))warnings.push("Hay sesiones de cuerpo completo consecutivas. Sepáralas con recuperación cuando puedas y reduce el esfuerzo si sigues fatigado/a.");
+  const frequencyRecommendation:FrequencyRecommendation|undefined=blocked?undefined:recommendFrequency(a);
+  const primaryDays=frequencyRecommendation?spacedDays(days,Math.min(days.length,frequencyRecommendation.recommendedDays)):[];
+  const designs=designDays(a,primaryDays);
+  if(primaryDays.length<4&&primaryDays.some(day=>primaryDays.includes((day+1)%7)))warnings.push("Tu agenda contiene sesiones principales consecutivas. Se han buscado los huecos más separados disponibles; conserva margen y ajusta el esfuerzo si no has recuperado.");
+  if(a.minutes===20&&a.equipment!=="walking")warnings.push("Con 20 minutos, los patrones se reparten entre días A/B/C. Esta selección breve no garantiza cubrir por sí sola todo el volumen semanal de fuerza; puedes revisar más días o tiempo cuando tu agenda lo permita.");
   const sets=regular&&a.minutes>=45&&a.goal!=="health"&&!enduranceFocus?3:2;
   const exerciseLimit=a.minutes===20?3:a.minutes===30?4:a.minutes===45?5:6;
   const perExerciseMinutes=sets===3?6:4;
   const selected=new Set<string>();
   const deliveredCardio=new Set<string>();
   let cardioCursor=0;
-  const intensity=regular?"RPE 5–6/10 como referencia moderada; ajusta el ritmo con la prueba del habla.":"Ritmo cómodo a moderado, con margen para hablar; reduce la duración si lo necesitas.";
-  function cardioBlock(kind:string,budget:number):CardioPrescription {
-    if(kind==="rope"||kind==="walk_run"){
-      const work=kind==="rope"?(regular?20:10):(regular?60:30);
-      const rest=kind==="rope"?60:(regular?60:90);
-      const cap=kind==="rope"?(regular?5:3):Math.max(1,Math.floor(budget/2));
+  function cardioBlock(kind:string,budget:number,design:DayDesign):CardioPrescription {
+    const controlledIntervals=regular&&design.aerobic==="intervals";
+    if(kind==="rope"||kind==="walk_run"||controlledIntervals){
+      const work=kind==="rope"?(regular?20:10):kind==="walk_run"?(regular?60:30):60;
+      const rest=kind==="rope"?60:kind==="walk_run"?(regular?60:90):60;
+      const cap=kind==="rope"?(design.aerobic==="easy"?3:5):Math.max(1,Math.min(10,Math.floor(budget/2)));
       const rounds=Math.max(1,Math.min(cap,Math.floor((budget*60+rest)/(work+rest))));
-      return {kind,rounds,workSeconds:work,restSeconds:rest,minutes:(rounds*work+Math.max(0,rounds-1)*rest)/60,intensity:kind==="walk_run"?"Alterna trote controlado y caminata de recuperación, conservando la técnica y un esfuerzo manejable.":"Saltos bajos y controlados; completa cada intervalo con margen y recupera antes del siguiente."};
+      return {kind,rounds,workSeconds:work,restSeconds:rest,minutes:(rounds*work+Math.max(0,rounds-1)*rest)/60,intensity:kind==="rope"?"Saltos bajos y controlados con margen; recupera antes de cada intervalo.":kind==="walk_run"?"Alterna trote controlado y caminata cómoda; reduce el trote si la técnica o el habla se deterioran.":"Alterna tramos moderados alrededor de RPE 5–6 con recuperación cómoda; no son sprints ni esfuerzos máximos."};
     }
-    return {kind,minutes:Math.round(budget*10)/10,intensity};
+    return {kind,minutes:Math.floor(budget*10)/10,intensity:design.aerobic==="easy"||!regular?"Ritmo cómodo que permita conversar con facilidad; reduce la duración si lo necesitas.":"Base aeróbica cómoda a moderada, orientada por la prueba del habla y tu recuperación."};
   }
-  function prescribeCardio(budget:number):CardioPrescription[]{
+  function prescribeCardio(budget:number,design:DayDesign):CardioPrescription[]{
     if(budget<1||!chosenCardio.length)return [];
-    const count=budget>=12&&chosenCardio.length>1?2:1;
-    return Array.from({length:count},()=>{const kind=chosenCardio[cardioCursor++%chosenCardio.length];deliveredCardio.add(kind);return cardioBlock(kind,budget/count);});
+    const count=budget>=16&&chosenCardio.length>1?2:1;
+    return Array.from({length:count},()=>{const kind=chosenCardio[cardioCursor++%chosenCardio.length];deliveredCardio.add(kind);return cardioBlock(kind,budget/count,design);});
   }
-  function candidates(index:number):string[]{
-    const upper=split&&index%2===0,lower=split&&index%2===1;
-    const push=regular?"push-ups":"wall-push-up";
-    const gym=upper?["incline-dumbbell-press","lat-pulldown","seated-cable-row","machine-shoulder-press","lateral-raises","hammer-curl"]:lower?["leg-press","dumbbell-rdl","seated-leg-curl","standing-calf-raises","cable-crunch","hip-thrust"]:["leg-press","incline-dumbbell-press","lat-pulldown","dumbbell-rdl","seated-cable-row","cable-crunch"];
-    const hybrid=upper?[push,"lat-pulldown","incline-dumbbell-press","seated-cable-row","lateral-raises"]:lower?["chair-squat","dumbbell-rdl","seated-leg-curl","glute-bridge","standing-calf-raises"]:index%2===0?["chair-squat","lat-pulldown",push,"dumbbell-rdl","seated-cable-row","glute-bridge"]:["leg-press",push,"dumbbell-row","glute-bridge","machine-shoulder-press","cable-crunch"];
-    const home=["chair-squat","dumbbell-row",push,"dumbbell-rdl","glute-bridge","lateral-raises"];
-    const bodyweight=["chair-squat",push,"glute-bridge"];
-    const ids=a.equipment==="gym"?gym:a.equipment==="hybrid"?hybrid:a.equipment==="dumbbells"?home:bodyweight;
-    // On short endurance sessions, alternate pairs across the week rather than repeat only a squat.
-    return enduranceFocus&&index%2===1?[...ids.slice(2),...ids.slice(0,2)]:ids;
-  }
-  function conditioningBlock(budget:number,index:number):ConditioningPrescription|undefined{
-    const push=regular?"push-ups":"wall-push-up";
-    const canPull=["gym","hybrid","dumbbells"].includes(a.equipment);
-    const ids=["chair-squat",push,canPull?"dumbbell-row":"glute-bridge"];
-    const format=regular&&style==="crossfit"||regular&&style==="cross_training"&&index%2===1?"emom":"circuit";
+  function conditioningBlock(budget:number,design:DayDesign):ConditioningPrescription|undefined{
+    // Keep timed blocks technically simple even when a strength goal uses barbells elsewhere.
+    const aliases:Record<string,string>={"hack-squat":"goblet-squat","bench-press":regular?"push-ups":"wall-push-up","romanian-deadlift":"glute-bridge"};
+    const ids=[...new Set(strengthCandidates(a,design.variant).slice(0,3).map(id=>aliases[id]||id))];
+    const format=design.format||"circuit";
     const workSeconds=format==="emom"?35:regular?40:30;
     const restSeconds=60-workSeconds;
     const rounds=Math.min(regular?4:2,Math.floor(budget/ids.length));
     if(rounds<1)return undefined;
     ids.forEach(id=>selected.add(id));
-    return {format,rounds,workSeconds,restSeconds,durationMinutes:rounds*ids.length,exerciseIds:ids,targetReps:regular?8:6,intensity:"Esfuerzo controlado a moderado; conserva técnica y recuperación entre estaciones.",instruction:format==="emom"?conditioningGuidance.emom:conditioningGuidance.circuit};
+    return {format,rounds,workSeconds,restSeconds,durationMinutes:rounds*ids.length,exerciseIds:ids,targetReps:regular?8:6,intensity:design.effort,instruction:format==="emom"?conditioningGuidance.emom:conditioningGuidance.circuit};
   }
   const plans:WorkoutDay[]=Array.from({length:7},(_,day)=>{
-    const empty:WorkoutDay={day,title:blocked?"Guía pendiente de orientación profesional":"Descanso",type:"rest",exerciseIds:[],walkMinutes:0,cardio:[],style,sessionPhases:[]};
+    const empty:WorkoutDay={day,title:blocked?"Guía pendiente de orientación profesional":"Descanso",type:"rest",exerciseIds:[],walkMinutes:0,cardio:[],style,sessionPhases:[],focus:blocked?"Pendiente de orientación":"Recuperación",rationale:blocked?"Acuerda un plan adaptado con un profesional.":"Un día sin entrenamiento planificado permite recuperar y sostener el programa.",effort:"Sin sesión obligatoria."};
     if(blocked||!days.includes(day))return empty;
-    const index=strengthDays.indexOf(day);
-    const warmup=a.minutes>=45?5:3;
-    const cooldown=a.minutes>=45?3:2;
+    const design=designs.get(day)!;
+    const warmup=design.optional?2:a.minutes>=45?5:3;
+    const cooldown=design.optional?1:a.minutes>=45?3:2;
     const available=a.minutes-warmup-cooldown;
-    const phases:SessionPhase[]=[{kind:"warmup",minutes:warmup,label:"Calentamiento suave y práctica de los movimientos"}];
+    const phases:SessionPhase[]=[{kind:"warmup",minutes:warmup,label:design.optional?"Movimiento suave a tu gusto":"Calentamiento y práctica de los movimientos"}];
     let ids:string[]=[];
     let conditioning:ConditioningPrescription|undefined;
     let cardioBudget=available;
-    if(index>=0){
-      const useConditioning=style==="circuit"||style==="crossfit"||style==="cross_training"&&index%2===1;
-      if(useConditioning){
-        conditioning=conditioningBlock(Math.max(3,available-(a.minutes>=30?8:3)),index);
-        if(conditioning){phases.push({kind:"conditioning",minutes:conditioning.durationMinutes,label:conditioning.format==="emom"?"EMOM técnico y escalable":"Circuito controlado por vueltas"});cardioBudget=available-conditioning.durationMinutes;}
-      }else{
-        const plannedCardio=enduranceFocus?Math.max(3,available-Math.min(2*perExerciseMinutes,available-3)):style==="mixed"?Math.max(3,Math.floor(available*0.4)):a.minutes>=45?8:3;
-        const strengthBudget=available-plannedCardio;
-        const count=Math.max(1,Math.min(exerciseLimit,Math.floor(strengthBudget/perExerciseMinutes)));
-        ids=candidates(index).slice(0,count);
-        ids.forEach(id=>selected.add(id));
-        const strengthMinutes=Math.min(strengthBudget,ids.length*perExerciseMinutes);
-        phases.push({kind:"strength",minutes:strengthMinutes,label:split?(index%2===0?"Fuerza de tren superior":"Fuerza de tren inferior"):"Fuerza con descansos incluidos"});
-        cardioBudget=available-strengthMinutes;
-      }
+    if(design.mode==="conditioning"){
+      conditioning=conditioningBlock(Math.max(3,available-(a.minutes>=30?8:3)),design);
+      if(conditioning){phases.push({kind:"conditioning",minutes:conditioning.durationMinutes,label:`${conditioning.format==="emom"?"EMOM":"Circuito"} ${design.variant} · estaciones y descansos`});cardioBudget=Math.min(available-conditioning.durationMinutes,a.minutes>=45?12:8);}
+    }else if(design.mode==="strength"){
+      const minimumCardio=style==="mixed"?Math.max(3,Math.floor(available*0.35)):3;
+      const strengthBudget=enduranceFocus?Math.min(12,available-3):available-minimumCardio;
+      const count=Math.max(1,Math.min(exerciseLimit,Math.floor(strengthBudget/perExerciseMinutes)));
+      ids=strengthCandidates(a,design.variant).slice(0,count);
+      ids.forEach(id=>selected.add(id));
+      const strengthMinutes=Math.min(strengthBudget,ids.length*perExerciseMinutes);
+      phases.push({kind:"strength",minutes:strengthMinutes,label:`${design.focus} · descansos incluidos`});
+      const remaining=available-strengthMinutes;
+      cardioBudget=design.aerobic==="long"&&regular?remaining:style==="mixed"?remaining:Math.min(remaining,enduranceFocus?10:6);
+    }else{
+      const factor=design.optional?0.35:!regular?0.6:design.aerobic==="long"?1:design.aerobic==="intervals"?0.75:design.aerobic==="base"?0.75:0.5;
+      cardioBudget=Math.max(1,Math.floor(available*factor));
+      if(design.optional)cardioBudget=Math.min(10,cardioBudget);
     }
-    const cardio=prescribeCardio(cardioBudget);
+    const cardio=prescribeCardio(cardioBudget,design);
     const cardioMinutes=cardio.reduce((total,item)=>total+item.minutes,0);
     if(cardio.length)phases.push({kind:"cardio",minutes:cardioMinutes,label:cardio.map(item=>cardioLabel(item.kind)).join(" + ")});
     phases.push({kind:"cooldown",minutes:cooldown,label:"Vuelta a la calma"});
-    return {day,title:index<0?`Cardio · ${cardio.map(item=>cardioLabel(item.kind)).join(" + ")}`:conditioning?`${conditioning.format==="emom"?"EMOM":"Circuito"} · ${trainingStyles.find(item=>item.id===style)?.label}`:style==="mixed"?"Fuerza + cardio":enduranceFocus?"Fuerza de apoyo + cardio":split?(index%2===0?"Tren superior":"Tren inferior"):`Cuerpo completo ${String.fromCharCode(65+index)}`,type:index>=0?"strength":"cardio",exerciseIds:ids,walkMinutes:0,cardio,style,sessionPhases:phases,...(conditioning?{conditioning}:{})};
+    const type:WorkoutDay["type"]=design.mode==="recovery"?"recovery":design.mode==="cardio"?"cardio":"strength";
+    return {day,title:design.focus,type,exerciseIds:ids,walkMinutes:0,cardio,style,sessionPhases:phases,focus:design.focus,rationale:design.rationale,effort:design.effort,optional:design.optional||false,...(conditioning?{conditioning}:{})};
   });
   const unplanned=chosenCardio.filter(kind=>!deliveredCardio.has(kind));
   if(unplanned.length&&!blocked)warnings.push(`Tu agenda no incluye todavía todas las opciones seleccionadas: ${unplanned.map(cardioLabel).join(", ")}. Prioriza tus preferidas o intercambia modalidades al editar el programa; no se añade tiempo extra fuera de tu disponibilidad.`);
@@ -517,17 +516,20 @@ function buildModernGuide(a:GuideAnswers){
     return {...exercise,sets,minReps:exercise.bodyweight?exercise.minReps:strength?6:8,maxReps:exercise.bodyweight?exercise.maxReps:strength?10:a.goal==="health"?15:12,trialLb:exercise.bodyweight?0:exercise.trialLb} satisfies Exercise;
   });
   const menus=blocked||a.dietaryCare==="yes"?Array.from({length:7},(_,day)=>({day,meals:[]})):mealSuggestions(a.preference,a.excluded,{dietaryRestrictions:a.dietaryRestrictions,favoriteIngredients:a.favoriteIngredients});
-  return {blocked,plans,catalog,menus,warnings,summary:`${strengthDays.length} días con fuerza o circuito · sesiones planificadas de hasta ${a.minutes} min`,principles:[
-    "La suma de los bloques planificados respeta el tiempo elegido; los descansos reales pueden variar. Ajusta la sesión sin sacrificar la técnica.",
+  return {blocked,plans,catalog,menus,warnings,frequencyRecommendation,designVersion:3,summary:`${primaryDays.length} sesiones principales en tu agenda actual · hasta ${a.minutes} min por sesión`,principles:[
+    "Cada día tiene un propósito y una selección estable A/B/C. Se mantienen las referencias en semanas sucesivas para registrar progreso, sin cambiar ejercicios al azar.",
+    "La frecuencia orientativa se calcula por separado de tu disponibilidad. El plan actual usa solo los días elegidos; los adicionales, si sobran, son opcionales y suaves.",
+    "La suma de los bloques planificados respeta el tiempo elegido; los descansos reales pueden variar. No se compensa una agenda corta con esfuerzos máximos.",
     "Las estaciones del circuito o EMOM se registran en su propio bloque y no añaden otra rutina completa de series para los mismos ejercicios.",
     conditioningGuidance.effort,conditioningGuidance.talkTest,conditioningGuidance.progression,
-    "Las cargas se eligen y calibran mediante tus registros y el equipo real; no se calculan a partir de sexo, edad o peso corporal.",
-    "Las ideas de comidas se filtran por preferencias e ingredientes; sus porciones no establecen metas calóricas ni garantizan cubrir necesidades individuales.",
+    "Las cargas se eligen mediante tus registros y el equipo real; no se calculan a partir de sexo, edad o peso corporal.",
+    "Las ideas de comidas filtradas no establecen metas calóricas ni garantizan cubrir necesidades individuales.",
+    "Las distribuciones de frecuencia y los minutos por bloque son propuestas editoriales ajustables basadas en principios generales; no son un óptimo individual demostrado.",
     "El horizonte sirve para revisar avances, sin garantizar cambios de peso, grasa o masa muscular.",conditioningGuidance.stop,
   ]};
 }
 
-export function buildGuide(a:GuideAnswers){validateAnswers(a);return isModernGuide(a)?buildModernGuide(a):buildLegacyGuide(a);}
+export function buildGuide(a:GuideAnswers){validateAnswers(a);return isModernGuide(a)?buildModernGuide(a):{...buildLegacyGuide(a),frequencyRecommendation:undefined,designVersion:1};}
 
 export function applyGuide(store: FitStore, a: GuideAnswers) {
   const guide = buildGuide(a);
@@ -638,6 +640,8 @@ export function applyGuide(store: FitStore, a: GuideAnswers) {
           version: guideVersion,
           savedAt: new Date().toISOString(),
         },
+        guideDesignVersion: isModernGuide(a) ? 3 : 1,
+        frequencyRecommendation: "frequencyRecommendation" in guide ? guide.frequencyRecommendation : null,
         guideWarnings: guide.warnings,
         guideBlocked: guide.blocked,
         onboardingRequired: false,

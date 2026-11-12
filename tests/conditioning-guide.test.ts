@@ -53,7 +53,8 @@ describe('Guía ampliada: modalidades, estilos y presupuesto de sesión',()=>{
   const guide=buildGuide(answers({trainingStyle:'crossfit',experience:'regular',minutes:45}));
   const blocks=guide.plans.flatMap(p=>p.conditioning?[p.conditioning]:[]);
   expect(blocks.length).toBeGreaterThan(0);
-  for(const block of blocks){expect(block.format).toBe('emom');expect(block.workSeconds).toBeLessThan(60);expect(block.restSeconds).toBeGreaterThan(0);expect(block.instruction).toMatch(/descansa el tiempo restante/);}
+  expect(new Set(blocks.map(block=>block.format))).toEqual(new Set(['emom','circuit']));
+  for(const block of blocks){expect(block.workSeconds).toBeLessThan(60);expect(block.restSeconds).toBeGreaterThan(0);if(block.format==='emom')expect(block.instruction).toMatch(/descansa el tiempo restante/);}
   expect(guide.warnings.join(' ')).toMatch(/no genera WOD avanzados/);
  });
 
@@ -79,7 +80,7 @@ describe('Guía ampliada: modalidades, estilos y presupuesto de sesión',()=>{
  });
 
  it('no introduce equipo de resistencia ni tirones ficticios en un entorno de peso corporal',()=>{
-  const allowed=new Set(['chair-squat','wall-push-up','push-ups','glute-bridge']);
+  const allowed=new Set(['chair-squat','wall-push-up','push-ups','glute-bridge','bodyweight-reverse-lunge','single-leg-glute-bridge']);
   for(const style of trainingStyles){
    const guide=buildGuide(answers({equipment:'bodyweight',trainingStyle:style.id,experience:'regular',minutes:60}));
    expect(guide.catalog.length).toBeGreaterThan(0);

@@ -1,3 +1,4 @@
+import {FrequencyAdvice} from "./FrequencyAdvice";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -128,11 +129,13 @@ export function Onboarding({
   onDone,
   onCancel,
   onSignOut,
+  reviewSaved = false,
 }: {
   store: FitStore;
   onDone: () => void;
   onCancel?: () => void;
   onSignOut?: () => void;
+  reviewSaved?: boolean;
 }) {
   const previous = store.list("user_profiles")[0]?.data.personalization;
   const [a, setA] = useState<QuestionnaireAnswers>(() => ({
@@ -165,7 +168,7 @@ export function Onboarding({
         )
       : [],
     allergyReviewed: previous?.allergyReviewed === true,
-    consent: false,
+    consent: reviewSaved && previous?.consent === true,
   }));
   const [allergyMode, setAllergyMode] = useState<"none" | "selected" | "">(
     () =>
@@ -175,7 +178,7 @@ export function Onboarding({
           : "none"
         : "",
   );
-  const [step, setStep] = useState(0),
+  const [step, setStep] = useState(reviewSaved && previous?.consent === true ? 5 : 0),
     [error, setError] = useState("");
   const update = <K extends keyof QuestionnaireAnswers>(
     key: K,
@@ -745,6 +748,7 @@ export function Onboarding({
         )}
         {step === 5 && (
           <>
+            {reviewSaved && <div className="notice"><p>Propuesta actualizada con tus respuestas guardadas. Revisa los cambios antes de aplicarlos; tu programa actual sigue activo hasta que confirmes.</p><button className="btn ghost" onClick={()=>setStep(1)}>Editar mis respuestas</button></div>}
             {preview ? (
               <>
                 <p className="eyebrow">
@@ -785,14 +789,18 @@ export function Onboarding({
                         ? "Preferencia de bajo impacto."
                         : "Impacto según modalidad y capacidad."}
                     </p>
+                    <FrequencyAdvice advice={preview.frequencyRecommendation}/>
                     <div className="guide-week">
-                      {preview.plans.map((p) => {
+                      {[...preview.plans].sort((left,right)=>((left.day+6)%7)-((right.day+6)%7)).map((p) => {
                         const ids =
                           p.conditioning?.exerciseIds || p.exerciseIds;
                         return (
                           <div key={p.day}>
                             <strong>{names[p.day]}</strong>
                             <span>{p.title}</span>
+                            {p.type!=="rest" && p.focus && p.focus!==p.title && <small><strong>Enfoque:</strong> {p.focus}</small>}
+                            {p.type!=="rest" && p.rationale && <p className="muted small">{p.rationale}</p>}
+                            {p.type!=="rest" && p.effort && <small>{p.effort}</small>}
                             {p.conditioning ? (
                               <small>
                                 {p.conditioning.format === "emom"

@@ -65,3 +65,13 @@ Referencias de técnica de ACE:
 - https://www.acefitness.org/certifiednewsarticle/2884/ace-sponsored-research-top-3-most-effective-chest-exercises/
 
 Las instrucciones en español son síntesis originales breves, no transcripciones de los proveedores. Detener una repetición ante dolor agudo y ajustar el recorrido o la carga; usar topes o compañero para presses con barra. El catálogo incluye dos pautas y dos errores comunes por ejercicio.
+
+## Distribución por propósito y orientación de frecuencia
+
+La guía moderna diferencia los días por función (fuerza, patrón dominante, técnica de circuito, base aeróbica, intervalos controlados o recuperación). Mantiene movimientos principales entre semanas para comparar registros; la variedad no consiste en cambiar ejercicios al azar. Las elecciones se restringen al equipo, experiencia y modalidades declaradas, con presupuesto explícito de tiempo.
+
+La **disponibilidad** determina el calendario real. La **frecuencia orientativa** es una regla de organización de FitTrack, basada en meta, experiencia, actividad fuera del entrenamiento, minutos por sesión y variedad de actividades; puede ser mayor o menor que los días disponibles. No es una frecuencia óptima demostrada para una persona ni un requisito universal de CrossFit o entrenamiento cruzado. Se explica el motivo, cómo se adapta la semana y qué función tendría un día adicional; no se añaden obligaciones fuera de la agenda elegida.
+
+ACSM 2026 respalda fuerza regular para los grandes grupos musculares al menos dos días por semana y la individualización del volumen, sin establecer que todos los estilos requieran cinco sesiones. La orientación de CrossFit distingue capacidad y recuperación; no se utiliza su cadencia como una regla universal para todos los usuarios: https://www.crossfit.com/essentials/how-often-should-i-do-crossfit .
+
+Las cuentas que ya tienen una guía generada pueden abrir **Revisar distribución mejorada** en Hoy: se presenta una propuesta usando sus respuestas guardadas. Solo al confirmar se reemplazan los planes futuros. No se modifica una sesión iniciada, un registro histórico ni un programa manual de forma silenciosa. La nueva distribución guarda `guideDesignVersion:3` y su orientación de frecuencia en el perfil.

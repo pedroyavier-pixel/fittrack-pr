@@ -1,3 +1,4 @@
+import {FrequencyAdvice} from "./components/FrequencyAdvice";
 import {cardioLabel} from "./data/conditioning";
 import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import type { Session } from "@supabase/supabase-js";
@@ -117,6 +118,7 @@ export function FitTrackShell({
   const p = profile(store);
   const unit = p.unit === "kg" ? "kg" : "lb";
   const plan = planFor(store, weekday(date));
+  const todayExerciseIds = plan.conditioning?.exerciseIds || plan.exerciseIds;
   const lib = exerciseLibrary(store);
   const logs = store.list("food_logs", date);
   const latest = store
@@ -179,6 +181,7 @@ export function FitTrackShell({
     return (
       <Onboarding
         store={store}
+        reviewSaved={!needsOnboarding && p.personalization?.version===2 && p.guideDesignVersion!==3 && !p.guideBlocked}
         onDone={() => {
           setCustomizing(false);
           changeView("today");
@@ -445,6 +448,7 @@ export function FitTrackShell({
                         ? "Puedes revisar tus respuestas y adaptar tus próximas sesiones."
                         : "Personaliza tu entrenamiento según tu meta, equipo y disponibilidad."}
                     </p>
+                    {p.personalization?.version===2 && !p.guideBlocked && p.guideDesignVersion!==3 && <p className="notice">Distribución mejorada disponible. Revisa tu guía para aplicar sesiones con enfoques distintos y una recomendación de frecuencia. Tus registros se conservan.</p>}
                     {p.guideBlocked && (
                       <p className="notice">
                         Guía pendiente de orientación profesional. No se ha
@@ -456,9 +460,10 @@ export function FitTrackShell({
                     className="btn ghost"
                     onClick={() => setCustomizing(true)}
                   >
-                    Personalizar mi guía
+                    {p.personalization?.version===2 && p.guideDesignVersion!==3 && !p.guideBlocked ? "Revisar distribución mejorada" : "Personalizar mi guía"}
                   </button>
                 </section>
+                {!p.guideBlocked && <FrequencyAdvice advice={p.frequencyRecommendation} compact/>}
                 <div className="dashboard-top">
                   <NutritionBars store={store} date={date} />
                   <section className="card workout-preview">
@@ -470,30 +475,32 @@ export function FitTrackShell({
                     </div>
                     <span className="workout-type">
                       {plan.type === "strength"
-                        ? "FUERZA + CONSTANCIA"
+                        ? plan.conditioning ? (plan.conditioning.format==="emom"?"EMOM TÉCNICO":"CIRCUITO CONTROLADO") : "FUERZA + CONSTANCIA"
                         : plan.type === "rest"
                           ? "RECUPERACIÓN"
                           : "MANTENTE EN MOVIMIENTO"}
                     </span>
                     <h2>{plan.title}</h2>
+                    {plan.focus && plan.focus!==plan.title && <p className="training-focus">{plan.focus}</p>}
+                    {plan.rationale && <p className="muted small">{plan.rationale}</p>}
                     <p>
                       {plan.type === "rest"
                         ? "Hoy es tu día de descanso. Recuperarte también es parte del progreso."
                         : plan.type === "recovery"
-                          ? "Día de recuperación activa. Camina, muévete y recarga."
+                          ? "Día de recuperación activa. Movimiento suave y movilidad, según tu plan."
                           : plan.type === "cardio"
                             ? plan.cardio?.length ? plan.cardio.map(c=>`${c.minutes} min · ${cardioLabel(c.kind)}`).join(" · ") : `${plan.walkMinutes} minutos de caminata. A tu ritmo.`
-                            : `${plan.exerciseIds.length} ejercicios · ${plan.exerciseIds.reduce((n, id) => n + (lib.find((e) => e.id === id)?.sets || 3), 0)} series programadas`}
+                            : plan.conditioning ? `${todayExerciseIds.length} estaciones · ${plan.conditioning.rounds} vueltas · ${plan.conditioning.durationMinutes} min` : `${plan.exerciseIds.length} ejercicios · ${plan.exerciseIds.reduce((n, id) => n + (lib.find((e) => e.id === id)?.sets || 3), 0)} series programadas`}
                     </p>
                     {plan.type === "strength" ? (
                       <div className="preview-exercises">
-                        {plan.exerciseIds.map((id) => {
+                        {todayExerciseIds.map((id) => {
                           const e = lib.find((e) => e.id === id);
                           return (
                             <div key={id}>
                               <span>{e?.name}</span>
                               <small>
-                                {e?.sets} × {e?.minReps}–{e?.maxReps}
+                                {plan.conditioning ? `${plan.conditioning.targetReps} reps de referencia` : `${e?.sets} × ${e?.minReps}–${e?.maxReps}`}
                               </small>
                             </div>
                           );

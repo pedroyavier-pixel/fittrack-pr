@@ -34,6 +34,10 @@ export interface WorkoutDay {
   conditioning?: ConditioningPrescription;
   style?: TrainingStyle["id"];
   sessionPhases?: SessionPhase[];
+  focus?: string;
+  rationale?: string;
+  effort?: string;
+  optional?: boolean;
 }
 
 const ms = "https://www.muscleandstrength.com/exercises/";
