@@ -1,12 +1,5 @@
 import { useState, type FormEvent } from "react";
-import {
-  ArrowUpRight,
-  ArrowRight,
-  Dumbbell,
-  ShieldCheck,
-  Mail,
-  Activity,
-} from "lucide-react";
+import { ArrowRight, Mail } from "lucide-react";
 import { supabase } from "../lib/client";
 export default function Auth() {
   const [mode, setMode] = useState<"login" | "signup" | "code">("login");
@@ -65,62 +58,12 @@ export default function Auth() {
   }
   return (
     <main className="auth-page">
-      <div className="auth-brand">
-        <span className="brand-icon">
-          <Activity size={24} />
-        </span>{" "}
-        FITTRACK <span>PR</span>
-      </div>
-      <div className="auth-layout">
-        <section className="auth-story">
-          <span className="eyebrow">
-            <span className="live-dot" /> TU PLAN. TU RITMO.
-          </span>
-          <h1>
-            Lo que haces hoy.
-            <br />
-            <em>
-              Lo que construyes
-              <br />
-              mañana.
-            </em>
-          </h1>
-          <p>
-            Tu entrenamiento, tus comidas y tu progreso.
-            <br />
-            Todo conectado, un día a la vez.
-          </p>
-          <div className="auth-program">
-            <Dumbbell />
-            <div>
-              <strong>Entrena a tu ritmo</strong>
-              <span>Guía adaptable · Comidas sugeridas · Registro privado</span>
-            </div>
-            <ArrowUpRight />
-          </div>
-          <div className="auth-art">
-            <span className="art-ring one" />
-            <span className="art-ring two" />
-            <span className="art-ring three" />
-            <span className="art-caption">
-              CONSTANCIA
-              <br />
-              <b>sobre perfección.</b>
-            </span>
-            <span className="art-number">HOY</span>
-          </div>
-        </section>
-        <section className="auth-card card">
-          <span className="eyebrow">BIENVENIDO A FITTRACK PR</span>
-          <h2>
-            {mode === "signup"
-              ? "Comienza a tu ritmo."
-              : "Tu siguiente paso empieza aquí."}
-          </h2>
-          <p className="muted">
-            Entra para crear tu guía y guardar tus registros. FitTrack orienta;
-            no sustituye a un entrenador, nutricionista ni profesional de salud.
-          </p>
+      <header className="auth-minimal-brand">
+        <h1>FITTRACK</h1>
+        <p>NO EXCUSES. JUST DO IT!</p>
+      </header>
+      <div className="auth-minimal-layout">
+        <section className="auth-card card" aria-label="Acceso a FitTrack">
           <div className="segmented">
             <button
               onClick={() => {
@@ -212,18 +155,8 @@ export default function Auth() {
               {msg}
             </p>
           )}
-          <div className="auth-security">
-            <ShieldCheck size={18} />
-            <span>Tus registros son privados y pertenecen a tu cuenta.</span>
-          </div>
-          <small className="muted">
-            Hora de Puerto Rico · America/Puerto_Rico
-          </small>
         </section>
       </div>
-      <footer className="auth-footer">
-        HECHO PARA LA VIDA REAL. <span>UN DÍA A LA VEZ.</span>
-      </footer>
     </main>
   );
 }

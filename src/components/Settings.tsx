@@ -710,14 +710,12 @@ export function Settings({
             )}
           </div>
           <div className="section-title">
-            <h2>Ejercicios y cargas habituales</h2>
+            <h2>Ejercicios y series</h2>
             <span className="badge">{plan.exerciseIds.length} ejercicios</span>
           </div>
           <p className="muted small">
-            Introduce cargas que ya conozcas o conserva las pruebas
-            provisionales. Estas referencias son opcionales y editables; no
-            obligan a aumentar peso. La calibración de cada ejercicio se aplica
-            a tus próximos entrenamientos.
+            Ajusta series y repeticiones. La carga la introduces tú durante el
+            entrenamiento; FitTrack no calcula ni asigna pesos automáticamente.
           </p>
           {plan.exerciseIds.map((id, index) => {
             const ex = exLib.find((e) => e.id === id);
@@ -772,25 +770,6 @@ export function Settings({
                   </select>
                 </label>
                 <div className="grid2">
-                  <label className="field">
-                    {ex.bodyweight
-                      ? "Carga externa o asistencia de referencia"
-                      : "Carga de referencia"}{" "}
-                    ({unit})
-                    <input
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={fromLb(d.trialLb, unit)}
-                      onChange={(e) =>
-                        updateExercise(
-                          id,
-                          "trialLb",
-                          toLb(Number(e.target.value), unit),
-                        )
-                      }
-                    />
-                  </label>
                   <label className="field">
                     Series
                     <input

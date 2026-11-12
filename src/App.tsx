@@ -1,3 +1,4 @@
+import {cardioLabel} from "./data/conditioning";
 import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
@@ -481,7 +482,7 @@ export function FitTrackShell({
                         : plan.type === "recovery"
                           ? "Día de recuperación activa. Camina, muévete y recarga."
                           : plan.type === "cardio"
-                            ? `${plan.walkMinutes} minutos de caminata. A tu ritmo, al aire libre.`
+                            ? plan.cardio?.length ? plan.cardio.map(c=>`${c.minutes} min · ${cardioLabel(c.kind)}`).join(" · ") : `${plan.walkMinutes} minutos de caminata. A tu ritmo.`
                             : `${plan.exerciseIds.length} ejercicios · ${plan.exerciseIds.reduce((n, id) => n + (lib.find((e) => e.id === id)?.sets || 3), 0)} series programadas`}
                     </p>
                     {plan.type === "strength" ? (
@@ -504,7 +505,7 @@ export function FitTrackShell({
                         <span>
                           {plan.type === "rest"
                             ? "RECUPERAR TAMBIÉN ES AVANZAR"
-                            : `${plan.walkMinutes} MIN · CAMINATA`}
+                            : plan.cardio?.length ? plan.cardio.map(c=>`${c.minutes} MIN · ${cardioLabel(c.kind)}`).join(" · ") : `${plan.walkMinutes} MIN · CAMINATA`}
                         </span>
                       </div>
                     )}

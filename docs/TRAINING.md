@@ -4,18 +4,23 @@ El calendario precargado reproduce las cuatro rutinas solicitadas: Upper A el lu
 
 No hay una fase automática de dos series. Las series de aproximación, si se realizan, deben distinguirse de las series de trabajo.
 
-## Cargas y doble progresión
+## Cargas registradas por el usuario
 
-- Las cargas iniciales son **pruebas provisionales editables**, elegidas como puntos de partida conservadores; no se infiere la fuerza a partir de 190 lb de peso corporal.
-- Barras: registrar el peso total, incluida la barra. Si 45 lb no es apropiado, usar barra de técnica o una alternativa más ligera.
-- Mancuernas: registrar el peso de una mancuerna, siguiendo siempre el mismo criterio.
-- Hack squat y leg press: 0 lb inicial significa **sin discos añadidos**, no resistencia cero. El trineo ya tiene una resistencia propia.
-- Máquinas: la selección mínima cómoda puede ser diferente de la cifra provisional. Registrar el mismo equipo y criterio permite comparaciones útiles.
-- Push-ups y Bulgarian split squat: BW; registrar carga externa adicional o asistencia por separado. Las repeticiones del Bulgarian y Pallof se cuentan por lado.
-- Antes de aumentar carga, completar las tres series en el extremo superior del rango, confirmar buena técnica y registrar al menos 2 repeticiones en reserva (RIR) en cada serie. El resultado es una sugerencia; nunca modifica las cargas por sí mismo.
-- Con series incompletas, diferentes cargas o datos de RIR/técnica ausentes, mantener la referencia y buscar más repeticiones. No llegar al mínimo con RIR 0–1 o perder la técnica permite sugerir una reducción editable.
-- La función `recommendLoad` recibe únicamente las series de trabajo de la última sesión comparable. Detecta sesiones/equipos mezclados cuando se proporcionan sus identificadores.
-- Con asistencia, la función conserva la referencia y explica cómo reducirla manualmente. No confunde menos asistencia con menos dificultad.
+FitTrack no asigna ni sugiere cargas iniciales. El usuario introduce su peso y elige la convención explícita en cada serie:
+
+- **Por mancuerna/mano:** se conserva el peso de una mancuerna para comparar; con dos iguales se calcula también la carga externa total. Si se usa una sola, elegir Total.
+- **Discos por cada lado + barra:** el total es dos veces los discos de un lado más el peso real de la barra o la resistencia inicial de la Smith, que debe indicarse; no se asumen45lb.
+- **Discos por cada lado:** suma ambos lados sin inventar la resistencia base del trineo. Se identifica el equipo.
+- **Total:** el peso indicado por el selector de una máquina o la carga externa total.
+- **BW:** sólo resistencia adicional o asistencia. La masa corporal no se suma al volumen externo.
+
+Los registros anteriores sin convención se conservan sin reinterpretarlos. Las gráficas avisan cuando la convención cambia. Las variantes tienen historial propio; no heredan cargas de otro ejercicio. La doble progresión se explica como principio opcional (primero repeticiones, luego carga que se controla), sin aumentos calculados por la aplicación. `recommendLoad` y `trialLb` permanecen exclusivamente por compatibilidad de código y pruebas anteriores; la interfaz no los utiliza para asignar pesos.
+
+## Guías nuevas y variantes
+
+El plan personal original conserva sus tres series. Los cuestionarios nuevos adaptan volumen al tiempo y experiencia, muestran fuentes y requieren confirmación antes de reemplazar planes futuros. El programa híbrido combina movimientos de gimnasio y peso corporal; los estilos incluyen fuerza, circuito, entrenamiento cruzado, mixto y acondicionamiento básico inspirado en CrossFit. El detalle de fases, intervalos y registro real está en el entrenamiento de cada día.
+
+`src/data/exerciseVariants.ts` añade26movimientos con demostraciones del proveedor verificadas por accesoHTTP y presencia de video el12-11-2026. Los58movimientos tienen dos alternativas de función similar, sin afirmar biomecánica idéntica ni equivalencia de cargas. Las variantes avanzadas o con equipo desconocido requieren aprender la técnica; no son una instrucción para forzar un movimiento doloroso. La apertura de la página no certifica reproducción en todos los dispositivos.
 
 ## Videos y fuentes
 

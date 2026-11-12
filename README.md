@@ -8,7 +8,7 @@ Aplicación personal de entrenamiento, nutrición y progreso en español. React 
 
 1. Abre https://pedroyavier-pixel.github.io/fittrack-pr/.
 2. Crea tu cuenta con tu correo y una contraseña de al menos 8 caracteres. Confirma el correo y entra. También puedes solicitar un enlace de acceso.
-3. En **Ajustes**, revisa fecha de inicio, unidades, objetivos y cargas habituales.
+3. En **Ajustes**, revisa fecha de inicio, unidades, objetivos y programa semanal.
 4. **Hoy** muestra el día de Puerto Rico. **Entrenar** inicia o recupera tu sesión. **Comidas** registra gramos reales. **Historial** consulta y edita cualquier fecha. **Progreso** guarda peso, cintura y fotos privadas.
 5. En Safari de iPhone: Compartir → Añadir a pantalla de inicio. La primera carga y el inicio de sesión necesitan conexión. Abre la app conectada una vez para precargar los archivos.
 
@@ -65,7 +65,7 @@ Variables opcionales del repositorio (Settings → Secrets and variables → Act
 | `src/lib/time.ts` | Fecha y hora siempre en America/Puerto_Rico |
 | `src/lib/store.ts` | Caché por usuario, cola durable, reconciliación, paginación, Realtime y reintentos |
 | `src/lib/model.ts` | Objetivos, catálogos, planes y cálculo proporcional |
-| `src/components/Workout.tsx` | Sesiones, series, descanso, sugerencias y cardio |
+| `src/components/Workout.tsx` | Sesiones, series, descanso, variantes, cargas explícitas y cardio |
 | `src/components/Nutrition.tsx` | Menú, cantidades reales, cafés, etiquetas, recetas y frecuentes |
 | `src/components/Progress.tsx` | Peso, cintura, fotos privadas y promedio móvil |
 | `src/components/History.tsx` | Calendario, filtros, edición, fuerza y exportación |
@@ -86,7 +86,7 @@ Cada entrada se escribe primero en almacenamiento local por cuenta. La caché du
 - Ediciones simultáneas de **la misma entrada** en dos dispositivos utilizan la última escritura que llega al servidor. Para evitar conflictos, no edites la misma serie o alimento a la vez en ambos.
 - Las fotos necesitan conexión y no se precargan ni comparten públicamente; se consultan mediante URLs firmadas de 15 minutos. Eliminar una medición la oculta mediante tombstone, sin purgar físicamente la foto, para permitir recuperación administrativa.
 - El reloj se actualiza cada segundo y al regresar desde segundo plano. Una sesión de fuerza conserva la fecha de inicio. Los formularios en edición conservan su fecha de registro; al cambiar de fecha visualmente no se borran registros.
-- Las sugerencias de fuerza son opcionales. El aumento sólo se sugiere con todas las series al extremo superior, técnica confirmada y RIR suficiente. Las cargas de máquinas requieren comparar el mismo equipo.
+- La carga la introduce el usuario con su convención explícita. No se sugieren pesos automáticamente. Las cargas de máquinas requieren comparar el mismo equipo.
 - Los enlaces abren las demostraciones externas en otra pestaña, conservando la sesión. La disponibilidad y las reglas de reproducción del proveedor pueden cambiar.
 
 ## Nutrición y entrenamiento
@@ -130,3 +130,13 @@ Las respuestas están en `fittrack_user_profiles.data.personalization`, protegid
 El usuario puede editar respuestas y exportar sus registros. No se añade publicidad ni intercambio entre cuentas. Los datos pendientes sin sincronizar dependen de la conservación del almacenamiento del dispositivo.
 
 Antes de abrir el registro a público externo, valida el envío real de confirmaciones a direcciones ajenas al equipo de Supabase y configura SMTP propio si corresponde. El servicio de correo integrado de Supabase restringe destinatarios y no está destinado a producción; ver https://supabase.com/docs/guides/auth/auth-smtp. No se deshabilita la confirmación del correo para evitar esta limitación. Esta entrega verifica el cuestionario y el guardado con datos de prueba, no la entrega de correo a una nueva cuenta externa.
+
+## Cuestionario ampliado, cargas y cocina de Puerto Rico
+
+La versión2 pregunta por sexo biológico, meta, entorno (gimnasio/casa/híbrido), estilo, actividades de cardio, impacto, acceso al equipo y restricciones alimentarias. El sexo no predice fuerza ni asigna cargas; las limitaciones y necesidades de adaptación requieren valoración individual. Las respuestas antiguas conservan su programa hasta confirmar otra guía.
+
+El catálogo muestra **Dos variantes** por movimiento, con técnica y equipo. Son alternativas de función similar, sin equivalencia exacta de carga, recorrido o demanda. Una sustitución utiliza su propio historial y nunca hereda automáticamente el peso del ejercicio anterior. No hay peso sugerido automático. Cada serie indica total, por mano, discos por lado o discos por lado más barra real. Para dos mancuernas iguales se almacena también la carga externa total. Las filas históricas sin convención no se reinterpretan. Las gráficas advierten cuando hay convenciones distintas.
+
+El planificador distribuye calentamiento, fuerza o acondicionamiento, cardio y vuelta a la calma dentro de los minutos seleccionados. Los circuitos y EMOM guardan duración real, vueltas, esfuerzo y notas; su cronómetro se recupera al reabrir. No generan series ficticias ni duplican automáticamente volumen de fuerza. CrossFit se presenta como acondicionamiento básico inspirado en sus principios, sin afiliación ni WOD avanzado. “Mixto” combina bloques de fuerza y cardio y no representa un protocolo de marca MixFit.
+
+Las recetas de inspiración puertorriqueña usan ingredientes individuales del catálogo verificable y sus cantidades reales. Las adaptaciones respetan las exclusiones seleccionadas; ningún filtro certifica etiquetas ni contacto cruzado. El asistente conversacional de recetas funciona con reglas locales y contexto de ingredientes, sin enviar conversaciones a una IA externa. Sugiere preparaciones y sustitutos, permite ajustar porciones y guardarlas; no prescribe dietas ni evalúa necesidades clínicas. Las referencias bibliográficas y los materiales abiertos se muestran en Alcance, fuentes y privacidad. No se afirma haber consultado el texto completo de los libros comerciales.
