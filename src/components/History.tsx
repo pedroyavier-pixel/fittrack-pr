@@ -30,6 +30,47 @@ import {
   useStore,
 } from "../lib/store";
 import { dateLabel, prDate, shiftDate, weekday, ZONE } from "../lib/time";
+import { normalizeLoad, type LoadBasis } from "../lib/loads";
+import { cardioActivities, cardioLabel } from "../data/conditioning";
+
+const loadBasisLabels: Record<LoadBasis, string> = {
+  total: "Carga total",
+  per_hand: "Por mano",
+  per_side: "Por lado (sin barra)",
+  bar_sides: "Por lado + barra",
+};
+function isLoadBasis(value: unknown): value is LoadBasis {
+  return typeof value === "string" && Object.hasOwn(loadBasisLabels, value);
+}
+function draftLoadSummary(data: Record<string, any>) {
+  if (!isLoadBasis(data.loadBasis))
+    return "Este registro anterior conserva su carga sin asumir si era por mano, por lado o total. Elige una convención solo si la conoces.";
+  try {
+    return loadSummary(
+      normalizeLoad(
+        Number(data.enteredWeightLb),
+        data.loadBasis,
+        Number(data.barWeightLb),
+      ),
+    );
+  } catch {
+    return "Completa una carga válida y, si corresponde, el peso real de la barra.";
+  }
+}
+function loadSummary(data: Record<string, any>) {
+  if (!isLoadBasis(data.loadBasis)) {
+    return `${round(num(data.weightLb))} lb (convención anterior sin especificar)`;
+  }
+  const entered = round(num(data.enteredWeightLb ?? data.weightLb));
+  const total = round(num(data.totalLoadLb ?? data.weightLb));
+  if (data.loadBasis === "per_hand")
+    return `${entered} lb por mano · ${total} lb totales`;
+  if (data.loadBasis === "per_side")
+    return `${entered} lb por lado · ${total} lb totales`;
+  if (data.loadBasis === "bar_sides")
+    return `${entered} lb por lado + barra de ${round(num(data.barWeightLb))} lb · ${total} lb totales`;
+  return `${entered} lb totales`;
+}
 
 type Filter = "all" | "workout" | "food" | "body" | "cardio";
 type Editing = { table: Table; row: Row };
@@ -83,6 +124,10 @@ export function exportRecords(store: FitStore, format: "json" | "csv") {
     "grasas_g",
     "ejercicio",
     "peso_lb",
+    "carga_introducida_lb",
+    "base_carga",
+    "peso_barra_lb",
+    "carga_total_lb",
     "repeticiones",
     "rir",
     "minutos",
@@ -112,6 +157,12 @@ export function exportRecords(store: FitStore, format: "json" | "csv") {
         d.fat,
         d.exerciseName || d.exerciseId,
         d.weightLb,
+        d.enteredWeightLb,
+        table === "workout_sets"
+          ? d.loadBasis || "legacy_unspecified"
+          : undefined,
+        d.barWeightLb,
+        d.totalLoadLb,
         d.reps,
         d.rir,
         d.minutes,
@@ -166,7 +217,8 @@ function workoutVolume(rows: Row[]) {
       row.data.completed === false || row.data.bodyweightMode === "assistance"
         ? sum
         : sum +
-          Math.max(0, num(row.data.weightLb)) * Math.max(0, num(row.data.reps)),
+          Math.max(0, num(row.data.totalLoadLb ?? row.data.weightLb)) *
+            Math.max(0, num(row.data.reps)),
     0,
   );
 }
@@ -230,6 +282,26 @@ export function History({
     ).entries(),
   ];
   const selectedStrength = strengthId || strengthExercises[0]?.[0] || "";
+  const strengthBases = new Set(
+    allSets
+      .filter(
+        (row) =>
+          row.data.exerciseId === selectedStrength &&
+          row.data.completed !== false &&
+          row.data.bodyweightMode !== "assistance",
+      )
+      .map((row) =>
+        row.data.loadBasis === "per_hand"
+          ? "por mano"
+          : isLoadBasis(row.data.loadBasis)
+            ? "total"
+            : "anterior sin especificar",
+      ),
+  );
+  const strengthConvention =
+    strengthBases.size > 1
+      ? `Convenciones mixtas: ${[...strengthBases].join(" / ")}`
+      : `Carga ${[...strengthBases][0] || "registrada"}`;
   const strength = useMemo(
     () => strengthData(allSets, selectedStrength),
     [allSets.map((r) => r.id + r.updated_at).join("|"), selectedStrength],
@@ -278,7 +350,18 @@ export function History({
   }
   function edit(table: Table, row: Row) {
     setEditing({ table, row });
-    setDraft({ ...row.data });
+    setDraft(
+      table === "workout_sets"
+        ? {
+            ...row.data,
+            loadBasis: isLoadBasis(row.data.loadBasis)
+              ? row.data.loadBasis
+              : "legacy",
+            enteredWeightLb: row.data.enteredWeightLb ?? row.data.weightLb,
+            barWeightLb: row.data.barWeightLb ?? 0,
+          }
+        : { ...row.data },
+    );
     setEditDate(row.local_date || date);
     setError("");
     setNotice("");
@@ -323,11 +406,31 @@ export function History({
         d.amount = amount;
       }
       if (table === "workout_sets") {
-        for (const key of ["weightLb", "reps"]) d[key] = num(d[key]);
-        if (d.weightLb < 0 || d.reps <= 0 || !Number.isInteger(d.reps))
+        const entered = Number(d.enteredWeightLb);
+        const bar = Number(d.barWeightLb ?? 0);
+        d.reps = Number(d.reps);
+        if (
+          !Number.isFinite(entered) ||
+          entered < 0 ||
+          !Number.isFinite(d.reps) ||
+          d.reps <= 0 ||
+          !Number.isInteger(d.reps)
+        )
           throw new Error(
             "Usa carga cero o mayor y repeticiones enteras mayores que cero.",
           );
+        if (isLoadBasis(d.loadBasis)) {
+          if (d.loadBasis === "bar_sides" && (!Number.isFinite(bar) || bar < 0))
+            throw new Error("Introduce un peso de barra válido, cero o mayor.");
+          Object.assign(d, normalizeLoad(entered, d.loadBasis, bar));
+        } else {
+          // Existing entries have no convention: keep their original interpretation.
+          d.weightLb = entered;
+          delete d.loadBasis;
+          delete d.enteredWeightLb;
+          delete d.barWeightLb;
+          delete d.totalLoadLb;
+        }
         if (d.rir !== "" && d.rir != null) {
           d.rir = num(d.rir);
           if (d.rir < 0 || d.rir > 10)
@@ -365,14 +468,7 @@ export function History({
         }
         if (num(d.minutes) <= 0)
           throw new Error("Introduce una duración mayor que cero.");
-        d.title =
-          (
-            {
-              walk: "Caminata",
-              mobility: "Movilidad general",
-              rope: "Cuica",
-            } as Record<string, string>
-          )[d.kind] || d.title;
+        d.title = cardioLabel(d.kind);
       }
       if (table === "body_measurements") {
         d.weightLb = num(d.weightLb);
@@ -675,11 +771,43 @@ export function History({
                 Fecha de la sesión: {editing.row.local_date}. Las cargas se
                 editan en libras.
               </p>
+              <label className="field">
+                Cómo registraste la carga
+                <select
+                  value={draft.loadBasis || "legacy"}
+                  onChange={(e) => setField("loadBasis", e.target.value)}
+                >
+                  {!isLoadBasis(editing.row.data.loadBasis) && (
+                    <option value="legacy">
+                      Convención anterior sin especificar
+                    </option>
+                  )}
+                  {(
+                    Object.entries(loadBasisLabels) as [LoadBasis, string][]
+                  ).map(([basis, label]) => (
+                    <option key={basis} value={basis}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div className="grid2">
-                {numericField("weightLb", "Peso (lb)", "0.1")}
+                {numericField(
+                  "enteredWeightLb",
+                  draft.loadBasis === "per_hand"
+                    ? "Peso por mano (lb)"
+                    : draft.loadBasis === "per_side" ||
+                        draft.loadBasis === "bar_sides"
+                      ? "Peso por lado (lb)"
+                      : "Peso registrado (lb)",
+                  "0.1",
+                )}
+                {draft.loadBasis === "bar_sides" &&
+                  numericField("barWeightLb", "Peso de la barra (lb)", "0.1")}
                 {numericField("reps", "Repeticiones", "1", "1")}
                 {numericField("rir", "RIR · opcional", "1")}
               </div>
+              <p className="muted">{draftLoadSummary(draft)}</p>
               <label className="row">
                 <input
                   type="checkbox"
@@ -698,9 +826,20 @@ export function History({
                   value={draft.kind || "walk"}
                   onChange={(e) => setField("kind", e.target.value)}
                 >
-                  <option value="walk">Caminata</option>
+                  {![
+                    "mobility",
+                    ...cardioActivities.map((activity) => activity.id),
+                  ].includes(draft.kind || "walk") && (
+                    <option value={draft.kind}>
+                      {cardioLabel(draft.kind)}
+                    </option>
+                  )}
                   <option value="mobility">Movilidad</option>
-                  <option value="rope">Cuica</option>
+                  {cardioActivities.map((activity) => (
+                    <option key={activity.id} value={activity.id}>
+                      {activity.label}
+                    </option>
+                  ))}
                 </select>
               </label>
               <div className="grid2">
@@ -845,8 +984,10 @@ export function History({
             </span>
           </div>
           <p className="muted">
-            Volumen externo: suma de carga por repeticiones. El peso corporal y
-            la asistencia no se convierten en carga externa.
+            Volumen externo: suma de carga total por repeticiones cuando se
+            indicó su convención. Los registros anteriores conservan la carga
+            anotada. El peso corporal y la asistencia no se convierten en carga
+            externa.
           </p>
           {!sessions.length && !sets.length && (
             <p className="empty">No hay sesiones registradas en esta fecha.</p>
@@ -922,8 +1063,7 @@ export function History({
                           : row.data.bodyweightMode
                             ? "BW + "
                             : ""}
-                        {round(num(row.data.weightLb))} lb ×{" "}
-                        {num(row.data.reps)} reps
+                        {loadSummary(row.data)} × {num(row.data.reps)} reps
                         {row.data.rir != null ? ` · RIR ${row.data.rir}` : ""}
                         {row.data.completed === false ? " · Pendiente" : ""}
                       </p>
@@ -961,7 +1101,7 @@ export function History({
                     {row.data.exerciseName || row.data.exerciseId}
                   </strong>
                   <p className="muted">
-                    {num(row.data.weightLb)} lb × {num(row.data.reps)} reps
+                    {loadSummary(row.data)} × {num(row.data.reps)} reps
                   </p>
                 </div>
                 {controls("workout_sets", row)}
@@ -980,18 +1120,7 @@ export function History({
           {cardio.map((row) => (
             <article className="row" key={row.id}>
               <div>
-                <strong>
-                  {row.data.title ||
-                    (
-                      {
-                        walk: "Caminata",
-                        mobility: "Movilidad",
-                        rope: "Cuica",
-                      } as Record<string, string>
-                    )[row.data.kind] ||
-                    row.data.kind ||
-                    "Actividad"}
-                </strong>
+                <strong>{row.data.title || cardioLabel(row.data.kind)}</strong>
                 <p className="muted">
                   {num(row.data.minutes)} min
                   {row.data.distanceKm
@@ -1066,6 +1195,7 @@ export function History({
                 ))}
               </select>
             </label>
+            <span className="badge">{strengthConvention}</span>
             <div style={{ height: 240, width: "100%" }}>
               <ResponsiveContainer>
                 <LineChart
@@ -1097,7 +1227,7 @@ export function History({
                     }
                     formatter={(value) => [
                       `${Number(value).toFixed(1)} lb`,
-                      "Carga máxima",
+                      `Máxima · ${strengthConvention}`,
                     ]}
                   />
                   <Line
@@ -1111,9 +1241,12 @@ export function History({
               </ResponsiveContainer>
             </div>
             <p className="muted">
-              Máxima carga externa en una serie de cada día, excluyendo series
-              con asistencia. Compara la misma máquina, técnica y modalidad; la
-              carga por sí sola no resume tu progreso.
+              Máxima carga registrada en una serie de cada día, excluyendo
+              series con asistencia. Las mancuernas registradas por mano
+              conservan ese valor en la gráfica; los registros antiguos
+              mantienen su convención original. Si mezclas convenciones por mano
+              y totales, sus valores no son directamente comparables. Compara la
+              misma máquina, técnica y modalidad.
             </p>
           </>
         ) : (

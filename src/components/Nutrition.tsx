@@ -23,6 +23,7 @@ import {
 import { weekday, dateLabel } from "../lib/time";
 import { mealSuggestionGuidance } from "../data/mealSuggestions";
 import { starterRecipes, type Food, type MealItem } from "../data/nutrition";
+import { RecipeAssistant, safeNutritionFilterFor } from "./RecipeAssistant";
 export function NutritionBars({
   store,
   date,
@@ -213,6 +214,7 @@ export function CoffeeCard({ store, date }: { store: FitStore; date: string }) {
     !coffeePlan.length
   )
     return null;
+  if (!safeNutritionFilterFor(store)("milk") || !safeNutritionFilterFor(store)("espresso")) return null;
   return (
     <div className="coffee-card">
       <span className="coffee-icon">
@@ -349,12 +351,14 @@ export function Meals({
   date: string;
   preview?: boolean;
 }) {
-  const [view, setView] = useState<"plan" | "library" | "recipes">("plan");
+  const [view, setView] = useState<"plan" | "library" | "recipes" | "assistant">("plan");
+  const [, refreshPreferences] = useState(0);
   const lib = foodLibrary(store);
-  const meals = menuFor(store, weekday(date)) as {
-    name: string;
-    items: MealItem[];
-  }[];
+  const configured=!!(store.list("user_profiles")[0]?.data.personalization || store.list("user_profiles")[0]?.data.nutritionPreferences);
+  const permitted=safeNutritionFilterFor(store);
+  const originalMeals = menuFor(store, weekday(date)) as {name:string;items:MealItem[]}[];
+  const meals=originalMeals.map(meal=>({...meal,items:meal.items.filter(item=>lib.some(food=>food.id===item.foodId)&&(!configured||permitted(item.foodId)))}));
+  const hiddenIngredients=originalMeals.reduce((sum,meal)=>sum+meal.items.length,0)-meals.reduce((sum,meal)=>sum+meal.items.length,0);
   const planTotal = meals.reduce(
     (sum, m) =>
       sum +
@@ -417,6 +421,7 @@ export function Meals({
           >
             Recetas y frecuentes
           </button>
+          <button className={view === "assistant" ? "active" : ""} onClick={()=>setView("assistant")}>Cocina PR</button>
         </div>
       )}
       {view === "plan" ? (
@@ -439,6 +444,7 @@ export function Meals({
               )}
             </section>
           )}
+          {hiddenIngredients>0&&<p className="notice">Se omitieron {hiddenIngredients} ingredientes del menú actual por tus filtros o porque requieren revisión. Ajusta tus recetas en Cocina PR. El historial permanece intacto.</p>}
           <CoffeeCard store={store} date={date} />
           <div className={preview ? "meal-grid" : "meal-grid full"}>
             {meals.map((meal, mi) => {
@@ -535,8 +541,15 @@ export function Meals({
         </>
       ) : view === "library" ? (
         <FoodLibrary store={store} />
-      ) : (
+      ) : view === "recipes" ? (
         <Recipes store={store} date={date} />
+      ) : (
+        <RecipeAssistant store={store} date={date} onPreferencesSaved={()=>refreshPreferences(value=>value+1)} onLog={(recipe,recordDate,batchId)=>{
+          const currentLib=foodLibrary(store);
+          const allowed=safeNutritionFilterFor(store);
+          for(const item of recipe.items) if(!allowed(item.foodId)||!currentLib.some(food=>food.id===item.foodId)||!Number.isFinite(item.amount)||item.amount<=0||item.amount>10000) throw new Error("Revisa ingredientes, cantidades y filtros antes de registrar.");
+          store.transaction(()=>recipe.items.forEach((item,index)=>logFood(store,currentLib.find(food=>food.id===item.foodId)!,item.amount,recipe.meal,recordDate,{recipeName:recipe.name,sourceRecipe:recipe.id,batchId},seedId(store.userId,`${batchId}:${index}:${item.foodId}`))));
+        }}/>
       )}
     </div>
   );
@@ -667,9 +680,9 @@ function FoodLibrary({ store }: { store: FitStore }) {
       "user_profiles",
       {
         ...p?.data,
-        favorites: favorites.includes(id)
-          ? favorites.filter((f: string) => f !== id)
-          : [...favorites, id],
+        favorites: favorites.includes(id) ? favorites.filter((f:string)=>f!==id) : [...favorites,id],
+        ...(p?.data.personalization ? {personalization:{...p.data.personalization,favoriteIngredients:favorites.includes(id)?favorites.filter((f:string)=>f!==id):[...favorites,id]}} : {}),
+        ...(p?.data.nutritionPreferences ? {nutritionPreferences:{...p.data.nutritionPreferences,favoriteIngredients:favorites.includes(id)?favorites.filter((f:string)=>f!==id):[...favorites,id]}} : {}),
       },
       { id: p?.id || seedId(store.userId, "profile") },
     );
@@ -868,9 +881,9 @@ function FoodForm({
 function Recipes({ store, date }: { store: FitStore; date: string }) {
   const lib = foodLibrary(store);
   const recipes = [
-    ...starterRecipes.map((r, i) => ({ id: "starter" + i, data: r })),
+    ...(store.list("user_profiles")[0]?.data.guideBlocked || store.list("user_profiles")[0]?.data.personalization?.dietaryCare === "yes" ? [] : starterRecipes.map((r,i)=>({id:"starter"+i,data:r}))),
     ...store.list("recipes"),
-  ];
+  ].filter(row=>!store.list("user_profiles")[0]?.data.personalization && !store.list("user_profiles")[0]?.data.nutritionPreferences || (Array.isArray(row.data.items) && row.data.items.every((item:MealItem)=>safeNutritionFilterFor(store)(item.foodId))));
   const [name, setName] = useState("");
   const [items, setItems] = useState<MealItem[]>([]);
   const [id, setId] = useState(lib[0].id);

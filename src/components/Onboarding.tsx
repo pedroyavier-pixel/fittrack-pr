@@ -16,7 +16,31 @@ import {
   type GuideAnswers,
 } from "../lib/personalization";
 import { foods } from "../data/nutrition";
-import { mealSuggestionGuidance } from "../data/mealSuggestions";
+import {
+  allergenOptions,
+  restrictionOptions,
+  mealSuggestionGuidance,
+} from "../data/mealSuggestions";
+import {
+  cardioActivities,
+  cardioLabel,
+  trainingStyles,
+  type TrainingStyle,
+} from "../data/conditioning";
+
+/** New fields remain optional while an older saved questionnaire is being reviewed. */
+type QuestionnaireAnswers = GuideAnswers & {
+  version?: number;
+  sex?: "male" | "female";
+  allergyReviewed?: boolean;
+  trainingStyle?: TrainingStyle["id"];
+  cardioChoices?: string[];
+  impactTolerance?: "low" | "any";
+  cardioAccess?: boolean;
+  dietaryRestrictions?: string[];
+  favoriteIngredients?: string[];
+};
+
 export function GuideInformation() {
   return (
     <details className="card guide-information">
@@ -31,10 +55,12 @@ export function GuideInformation() {
         </p>
         <p>
           Las reglas ajustan selección, frecuencia, series y repeticiones según
-          tus respuestas. Las fuentes respaldan principios generales; no
-          significan que esta rutina individual haya sido validada clínicamente.
-          Los videos y las indicaciones técnicas están en cada ejercicio.
+          tus respuestas. Las fuentes y la bibliografía respaldan principios
+          generales; no significan que esta rutina individual haya sido validada
+          clínicamente. Los videos y las indicaciones técnicas están en cada
+          ejercicio.
         </p>
+        <h3>Fuentes y bibliografía</h3>
         {guideSources.map((s) => (
           <p key={s.url}>
             <a href={s.url} target="_blank" rel="noopener noreferrer">
@@ -65,9 +91,8 @@ export function GuideInformation() {
         </p>
         <p>
           Puedes editar tus respuestas y exportar tus registros desde Historial.
-          No publicamos tus datos personales en GitHub. Las exclusiones son
-          preferencias de ingredientes, no una certificación de seguridad para
-          alergias.
+          No publicamos tus datos personales en GitHub. Los filtros de
+          ingredientes no certifican productos seguros para alergias.
         </p>
       </div>
     </details>
@@ -82,6 +107,22 @@ const names = [
   "Viernes",
   "Sábado",
 ];
+const impactLabels = {
+  low: "Bajo impacto",
+  moderate: "Impacto moderado",
+  high: "Impacto alto",
+};
+function legacyCardioChoices(previous: Record<string, unknown> | undefined) {
+  if (Array.isArray(previous?.cardioChoices))
+    return previous.cardioChoices.filter(
+      (id): id is string =>
+        typeof id === "string" && cardioActivities.some((c) => c.id === id),
+    );
+  if (previous?.cardio === "both") return ["walk", "rope"];
+  if (previous?.cardio === "rope") return ["rope"];
+  if (previous?.cardio === "walk") return ["walk"];
+  return [];
+}
 export function Onboarding({
   store,
   onDone,
@@ -94,37 +135,71 @@ export function Onboarding({
   onSignOut?: () => void;
 }) {
   const previous = store.list("user_profiles")[0]?.data.personalization;
-  const [a, setA] = useState<GuideAnswers>(() =>
-    previous
-      ? {
-          ...initialAnswers,
-          ...previous,
-          days: [...previous.days],
-          excluded: [...previous.excluded],
-          consent: false,
-        }
-      : { ...initialAnswers, days: [...initialAnswers.days], excluded: [] },
+  const [a, setA] = useState<QuestionnaireAnswers>(() => ({
+    ...initialAnswers,
+    ...previous,
+    version: 2,
+    days: Array.isArray(previous?.days)
+      ? [...previous.days]
+      : [...initialAnswers.days],
+    excluded: Array.isArray(previous?.excluded)
+      ? previous.excluded.filter((id: string) =>
+          allergenOptions.some((o) => o.id === id),
+        )
+      : [],
+    cardioChoices: legacyCardioChoices(previous),
+    trainingStyle: previous?.trainingStyle,
+    impactTolerance: previous?.impactTolerance,
+    cardioAccess:
+      typeof previous?.cardioAccess === "boolean"
+        ? previous.cardioAccess
+        : false,
+    dietaryRestrictions: Array.isArray(previous?.dietaryRestrictions)
+      ? previous.dietaryRestrictions.filter((id: string) =>
+          restrictionOptions.some((o) => o.id === id),
+        )
+      : [],
+    favoriteIngredients: Array.isArray(previous?.favoriteIngredients)
+      ? previous.favoriteIngredients.filter((id: string) =>
+          foods.some((f) => f.id === id),
+        )
+      : [],
+    allergyReviewed: previous?.allergyReviewed === true,
+    consent: false,
+  }));
+  const [allergyMode, setAllergyMode] = useState<"none" | "selected" | "">(
+    () =>
+      previous?.allergyReviewed === true
+        ? previous?.excluded?.length
+          ? "selected"
+          : "none"
+        : "",
   );
   const [step, setStep] = useState(0),
     [error, setError] = useState("");
-  const update = <K extends keyof GuideAnswers>(
+  const update = <K extends keyof QuestionnaireAnswers>(
     key: K,
-    value: GuideAnswers[K],
+    value: QuestionnaireAnswers[K],
   ) => {
     setA((x) => ({ ...x, [key]: value }));
     setError("");
   };
   const blocked = a.age === "under18" || a.professionalSupport !== "no";
+  const choices = a.cardioChoices || [];
+  const selectedCardio = cardioActivities.filter((c) => choices.includes(c.id));
+  const needsAccess = selectedCardio.some((c) => c.needsEquipment);
+  const compatibleCardio = selectedCardio.filter(
+    (c) =>
+      (a.impactTolerance !== "low" || c.impact === "low") &&
+      (!c.needsEquipment || a.cardioAccess === true),
+  );
+  const selectedStyle = trainingStyles.find((s) => s.id === a.trainingStyle);
   const select = (key: keyof typeof guideOptions, label: string) => (
     <label className="field">
       {label}
       <select
-        value={a[key]}
-        onChange={(e) => {
-          update(key, e.target.value as never);
-          if (key === "equipment" && e.target.value === "walking")
-            update("cardio", "walk");
-        }}
+        value={String(a[key] ?? "")}
+        onChange={(e) => update(key, e.target.value as never)}
         required
       >
         <option value="" disabled>
@@ -145,16 +220,46 @@ export function Onboarding({
       );
       return;
     }
-    if (step === 1 && (!a.activity || !a.experience)) {
-      setError("Selecciona tu actividad diaria y experiencia.");
+    if (step === 1 && (!a.sex || !a.activity || !a.experience)) {
+      setError("Selecciona tu sexo, actividad diaria y experiencia.");
       return;
     }
-    if (step === 2 && (!a.goal || !a.equipment || !a.horizon)) {
-      setError("Selecciona tu meta, entorno y horizonte.");
+    if (
+      step === 2 &&
+      (!a.goal || !a.equipment || !a.horizon || !a.trainingStyle)
+    ) {
+      setError(
+        "Selecciona tu meta, entorno, estilo de entrenamiento y horizonte.",
+      );
       return;
     }
-    if (step === 3 && (a.days.length < 2 || a.days.length > 5)) {
-      setError("Selecciona entre 2 y 5 días disponibles.");
+    if (step === 3) {
+      if (a.days.length < 2 || a.days.length > 5) {
+        setError("Selecciona entre 2 y 5 días disponibles.");
+        return;
+      }
+      if (!choices.length || !a.impactTolerance) {
+        setError(
+          "Elige al menos una actividad cardiovascular y tu preferencia de impacto.",
+        );
+        return;
+      }
+      if (!compatibleCardio.length) {
+        setError(
+          "Elige al menos una actividad compatible con tu preferencia de impacto y el equipo al que tienes acceso. Confirma el acceso al equipo si corresponde.",
+        );
+        return;
+      }
+    }
+    if (
+      step === 4 &&
+      (!a.allergyReviewed ||
+        !allergyMode ||
+        (allergyMode === "selected" && !a.excluded.length))
+    ) {
+      setError(
+        "Confirma que no excluyes ninguno de los ingredientes indicados o selecciona los que necesitas excluir.",
+      );
       return;
     }
     setError("");
@@ -162,10 +267,16 @@ export function Onboarding({
     window.scrollTo({ top: 0, behavior: "instant" });
   }
   let preview: ReturnType<typeof buildGuide> | undefined;
+  let previewError = "";
   if (step === 5)
     try {
       preview = buildGuide(a);
-    } catch {}
+    } catch (e) {
+      previewError =
+        e instanceof Error
+          ? e.message
+          : "Faltan respuestas. Vuelve a las preguntas para completarlas.";
+    }
   const title = [
     "Empecemos con calma.",
     "Tu punto de partida.",
@@ -202,10 +313,9 @@ export function Onboarding({
         {step === 0 && (
           <>
             <p>
-              Responde unas preguntas de opción cerrada. Prepararemos una
-              propuesta que podrás revisar y editar antes de usarla. Esta
-              versión orienta a personas adultas; no reemplaza evaluación
-              profesional.
+              Responde unas preguntas para preparar una propuesta que podrás
+              revisar y editar antes de usarla. Esta versión orienta a personas
+              adultas; no reemplaza evaluación profesional.
             </p>
             {select("age", "¿En qué grupo de edad estás?")}
             <label className="field">
@@ -253,6 +363,27 @@ export function Onboarding({
         )}
         {step === 1 && (
           <>
+            <label className="field">
+              Sexo biológico
+              <select
+                required
+                value={a.sex || ""}
+                onChange={(e) =>
+                  update("sex", e.target.value as "male" | "female")
+                }
+              >
+                <option value="" disabled>
+                  Selecciona una opción
+                </option>
+                <option value="male">Masculino</option>
+                <option value="female">Femenino</option>
+              </select>
+            </label>
+            <p className="muted small">
+              Este dato aporta contexto a tu perfil. La selección de ejercicios
+              y las cargas se adaptan a tu experiencia, equipo y registros, sin
+              asumir capacidades por sexo.
+            </p>
             <p>
               El peso es opcional y no se usa para adivinar cuánto puedes
               levantar ni para asignarte calorías.
@@ -300,6 +431,28 @@ export function Onboarding({
           <>
             {select("goal", "¿Qué te gustaría priorizar?")}
             {select("equipment", "¿Dónde y con qué prefieres entrenar?")}
+            <label className="field">
+              ¿Qué estilo de entrenamiento te interesa?
+              <select
+                required
+                value={a.trainingStyle || ""}
+                onChange={(e) =>
+                  update("trainingStyle", e.target.value as TrainingStyle["id"])
+                }
+              >
+                <option value="" disabled>
+                  Selecciona una opción
+                </option>
+                {trainingStyles.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedStyle && (
+              <p className="muted small">{selectedStyle.description}</p>
+            )}
             {select("horizon", "¿En qué horizonte te gustaría trabajar?")}
             <p className="muted">
               Tu plazo es una preferencia para revisar avances. No se promete un
@@ -346,49 +499,225 @@ export function Onboarding({
                 ))}
               </select>
             </label>
-            {a.equipment !== "walking" &&
-              select("cardio", "¿Qué actividad cardiovascular prefieres?")}
+            <label className="field">
+              ¿Qué impacto prefieres para el cardio?
+              <select
+                required
+                value={a.impactTolerance || ""}
+                onChange={(e) =>
+                  update("impactTolerance", e.target.value as "low" | "any")
+                }
+              >
+                <option value="" disabled>
+                  Selecciona una opción
+                </option>
+                <option value="low">Prefiero bajo impacto</option>
+                <option value="any">
+                  Puedo considerar distintos niveles de impacto
+                </option>
+              </select>
+            </label>
+            <fieldset className="guide-days">
+              <legend>
+                ¿Qué actividades cardiovasculares te interesan? Puedes elegir
+                varias.
+              </legend>
+              {cardioActivities.map((c) => (
+                <label
+                  key={c.id}
+                  className={choices.includes(c.id) ? "selected" : ""}
+                >
+                  <input
+                    type="checkbox"
+                    checked={choices.includes(c.id)}
+                    onChange={() =>
+                      update(
+                        "cardioChoices",
+                        choices.includes(c.id)
+                          ? choices.filter((id) => id !== c.id)
+                          : [...choices, c.id],
+                      )
+                    }
+                  />
+                  <span>
+                    <strong>{c.label}</strong>
+                    <small className="muted" style={{ display: "block" }}>
+                      {impactLabels[c.impact]}
+                      {c.needsEquipment ? ` · ${c.needsEquipment}` : ""}
+                    </small>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+            {needsAccess && (
+              <label className="guide-check">
+                <input
+                  type="checkbox"
+                  checked={a.cardioAccess === true}
+                  onChange={(e) => update("cardioAccess", e.target.checked)}
+                />
+                <span>
+                  Confirmo que tengo acceso al equipo, al espacio y a las
+                  condiciones necesarias para las actividades seleccionadas que
+                  los requieren.
+                </span>
+              </label>
+            )}
+            {selectedCardio.some((c) => c.supervision) && (
+              <p className="muted small">
+                {selectedCardio
+                  .filter((c) => c.supervision)
+                  .map((c) => `${c.label}: ${c.supervision}`)
+                  .join(" ")}
+              </p>
+            )}
+            {selectedCardio.length > compatibleCardio.length && (
+              <p className="notice">
+                La guía omitirá las actividades que no coincidan con tu
+                preferencia de impacto o para las que no hayas confirmado acceso
+                al equipo. No añadiremos otra modalidad sin que la selecciones.
+              </p>
+            )}
             <p className="muted">
-              Distribuimos fuerza y recuperación según tu disponibilidad. Los
-              minutos son una referencia: puedes acortar la sesión o registrar
-              solo lo que realizaste.
+              Distribuimos fuerza, cardio y recuperación según tu
+              disponibilidad. El impacto describe la carga mecánica habitual, no
+              la intensidad cardiovascular. Los minutos son una referencia:
+              registra lo que realmente realizas.
             </p>
           </>
         )}
         {step === 4 && (
           <>
             {select("preference", "¿Qué tipo de alimentación prefieres?")}
+            <fieldset
+              className="stack"
+              style={{ border: 0, padding: 0, margin: 0 }}
+            >
+              <legend>
+                Confirma las alergias o ingredientes que necesitas excluir.
+              </legend>
+              <label className="guide-check">
+                <input
+                  type="radio"
+                  name="allergy-review"
+                  value="none"
+                  checked={allergyMode === "none"}
+                  onChange={() => {
+                    setAllergyMode("none");
+                    setA((x) => ({
+                      ...x,
+                      excluded: [],
+                      allergyReviewed: true,
+                    }));
+                    setError("");
+                  }}
+                />
+                <span>Ninguna de las opciones indicadas</span>
+              </label>
+              <label className="guide-check">
+                <input
+                  type="radio"
+                  name="allergy-review"
+                  value="selected"
+                  checked={allergyMode === "selected"}
+                  onChange={() => {
+                    setAllergyMode("selected");
+                    update("allergyReviewed", a.excluded.length > 0);
+                  }}
+                />
+                <span>Necesito excluir uno o más de estos ingredientes</span>
+              </label>
+            </fieldset>
+            {allergyMode === "selected" && (
+              <fieldset className="guide-days">
+                <legend>Selecciona todos los que correspondan.</legend>
+                {allergenOptions.map((o) => (
+                  <label
+                    key={o.id}
+                    className={a.excluded.includes(o.id) ? "selected" : ""}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={a.excluded.includes(o.id)}
+                      onChange={() => {
+                        const excluded = a.excluded.includes(o.id)
+                          ? a.excluded.filter((id) => id !== o.id)
+                          : [...a.excluded, o.id];
+                        setA((x) => ({
+                          ...x,
+                          excluded,
+                          allergyReviewed: excluded.length > 0,
+                        }));
+                        setError("");
+                      }}
+                    />
+                    {o.label}
+                  </label>
+                ))}
+              </fieldset>
+            )}
             <fieldset className="guide-days">
-              <legend>¿Qué ingredientes prefieres excluir?</legend>
-              {(
-                [
-                  ["dairy", "Lácteos"],
-                  ["egg", "Huevo"],
-                  ["fish", "Pescado"],
-                  ["nuts", "Frutos secos"],
-                  ["gluten", "Ingredientes con gluten"],
-                ] as const
-              ).map(([key, label]) => (
+              <legend>Otras preferencias o restricciones · opcional</legend>
+              {restrictionOptions.map((o) => (
                 <label
-                  key={key}
-                  className={a.excluded.includes(key) ? "selected" : ""}
+                  key={o.id}
+                  className={
+                    a.dietaryRestrictions?.includes(o.id) ? "selected" : ""
+                  }
                 >
                   <input
                     type="checkbox"
-                    checked={a.excluded.includes(key)}
+                    checked={a.dietaryRestrictions?.includes(o.id) || false}
                     onChange={() =>
                       update(
-                        "excluded",
-                        a.excluded.includes(key)
-                          ? a.excluded.filter((k) => k !== key)
-                          : [...a.excluded, key],
+                        "dietaryRestrictions",
+                        a.dietaryRestrictions?.includes(o.id)
+                          ? a.dietaryRestrictions.filter((id) => id !== o.id)
+                          : [...(a.dietaryRestrictions || []), o.id],
                       )
                     }
                   />
-                  {label}
+                  {o.label}
                 </label>
               ))}
             </fieldset>
+            <p className="muted small">
+              Evitar lactosa es una preferencia o restricción distinta de una
+              alergia a la leche. Selecciona las exclusiones que correspondan y
+              revisa las etiquetas reales.
+            </p>
+            <details>
+              <summary>Ingredientes que disfrutas · opcional</summary>
+              <p className="muted small">
+                Elige favoritos del catálogo. Las exclusiones y restricciones
+                tienen prioridad sobre tus favoritos.
+              </p>
+              <fieldset className="guide-days">
+                <legend>Ingredientes favoritos</legend>
+                {foods.map((f) => (
+                  <label
+                    key={f.id}
+                    className={
+                      a.favoriteIngredients?.includes(f.id) ? "selected" : ""
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={a.favoriteIngredients?.includes(f.id) || false}
+                      onChange={() =>
+                        update(
+                          "favoriteIngredients",
+                          a.favoriteIngredients?.includes(f.id)
+                            ? a.favoriteIngredients.filter((id) => id !== f.id)
+                            : [...(a.favoriteIngredients || []), f.id],
+                        )
+                      }
+                    />
+                    {f.name}
+                  </label>
+                ))}
+              </fieldset>
+            </details>
             <label className="field">
               ¿Necesitas un plan de alimentación adaptado por un profesional?
               <span className="muted small">
@@ -409,7 +738,8 @@ export function Onboarding({
             <p className="muted">
               Propondremos ideas de comidas con ingredientes separados, sin una
               dieta ni calorías prescritas. Los filtros no verifican etiquetas,
-              trazas ni contacto cruzado.
+              trazas ni contacto cruzado. Si necesitas adaptación alimentaria,
+              revisaremos solo el registro manual.
             </p>
           </>
         )}
@@ -433,43 +763,107 @@ export function Onboarding({
                         guideOptions.equipment.find(
                           ([v]) => v === a.equipment,
                         )?.[1]
-                      }
+                      }{" "}
+                      · {selectedStyle?.label}
                     </p>
                     <p className="muted">
+                      {a.sex === "female"
+                        ? "Femenino"
+                        : a.sex === "male"
+                          ? "Masculino"
+                          : ""}
                       {a.weight
-                        ? `${a.weight} ${a.unit} indicados voluntariamente · `
-                        : ""}
+                        ? ` · ${a.weight} ${a.unit} indicados voluntariamente`
+                        : ""}{" "}
+                      ·{" "}
                       {guideOptions.horizon.find(([v]) => v === a.horizon)?.[1]}
                     </p>
+                    <p>
+                      <strong>Cardio seleccionado:</strong>{" "}
+                      {selectedCardio.map((c) => c.label).join(" · ")}.{" "}
+                      {a.impactTolerance === "low"
+                        ? "Preferencia de bajo impacto."
+                        : "Impacto según modalidad y capacidad."}
+                    </p>
                     <div className="guide-week">
-                      {preview.plans.map((p) => (
-                        <div key={p.day}>
-                          <strong>{names[p.day]}</strong>
-                          <span>{p.title}</span>
-                          <small>
-                            {p.exerciseIds.length
-                              ? `${p.exerciseIds.length} ejercicios`
-                              : p.walkMinutes
-                                ? `${p.walkMinutes} min de caminata`
-                                : "Recuperación"}
-                          </small>
-                          {p.exerciseIds.length > 0 && (
-                            <ul>
-                              {p.exerciseIds.map((id) => {
-                                const e = preview!.catalog.find(
-                                  (x) => x.id === id,
-                                )!;
-                                return (
-                                  <li key={id}>
-                                    {e.name} · {e.sets} × {e.minReps}–
-                                    {e.maxReps}
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
+                      {preview.plans.map((p) => {
+                        const ids =
+                          p.conditioning?.exerciseIds || p.exerciseIds;
+                        return (
+                          <div key={p.day}>
+                            <strong>{names[p.day]}</strong>
+                            <span>{p.title}</span>
+                            {p.conditioning ? (
+                              <small>
+                                {p.conditioning.format === "emom"
+                                  ? "EMOM"
+                                  : "Circuito"}{" "}
+                                · {p.conditioning.rounds} vueltas ·{" "}
+                                {p.conditioning.durationMinutes} min
+                              </small>
+                            ) : (
+                              <small>
+                                {p.exerciseIds.length
+                                  ? `${p.exerciseIds.length} ejercicios`
+                                  : p.cardio?.length
+                                    ? p.cardio
+                                        .map(
+                                          (c) =>
+                                            `${cardioLabel(c.kind)} · ${c.minutes} min`,
+                                        )
+                                        .join(" / ")
+                                    : p.walkMinutes
+                                      ? `${p.walkMinutes} min de caminata`
+                                      : "Recuperación"}
+                              </small>
+                            )}
+                            {ids.length > 0 && !!p.cardio?.length && (
+                              <small>
+                                {p.cardio
+                                  .map(
+                                    (c) =>
+                                      `${cardioLabel(c.kind)} · ${c.minutes} min`,
+                                  )
+                                  .join(" / ")}
+                              </small>
+                            )}
+                            {!!p.sessionPhases?.length && (
+                              <small>
+                                {p.sessionPhases
+                                  .map(
+                                    (phase) =>
+                                      `${phase.label}: ${phase.minutes} min`,
+                                  )
+                                  .join(" · ")}
+                              </small>
+                            )}
+                            {ids.length > 0 && (
+                              <ul>
+                                {ids.map((id) => {
+                                  const exercise = preview!.catalog.find(
+                                    (e) => e.id === id,
+                                  );
+                                  return exercise ? (
+                                    <li key={id}>
+                                      {exercise.name} ·{" "}
+                                      {p.conditioning
+                                        ? `${p.conditioning.targetReps} repeticiones de referencia por estación`
+                                        : `${exercise.sets} × ${exercise.minReps}–${exercise.maxReps}`}
+                                    </li>
+                                  ) : null;
+                                })}
+                              </ul>
+                            )}
+                            {p.conditioning && (
+                              <small>
+                                {p.conditioning.workSeconds} s de trabajo ·{" "}
+                                {p.conditioning.restSeconds} s de descanso.{" "}
+                                {p.conditioning.instruction}
+                              </small>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </>
                 )}
@@ -484,6 +878,35 @@ export function Onboarding({
                       <li key={p}>{p}</li>
                     ))}
                   </ul>
+                )}
+                {!preview.blocked && (
+                  <p className="muted">
+                    <strong>Ingredientes excluidos:</strong>{" "}
+                    {a.excluded.length
+                      ? a.excluded
+                          .map(
+                            (id) =>
+                              allergenOptions.find((o) => o.id === id)?.label ||
+                              id,
+                          )
+                          .join(" · ")
+                      : "Ninguno de los indicados"}
+                    .
+                    {!!a.dietaryRestrictions?.length && (
+                      <>
+                        {" "}
+                        <strong>Restricciones:</strong>{" "}
+                        {a.dietaryRestrictions
+                          .map(
+                            (id) =>
+                              restrictionOptions.find((o) => o.id === id)
+                                ?.label || id,
+                          )
+                          .join(" · ")}
+                        .
+                      </>
+                    )}
+                  </p>
                 )}
                 {!preview.blocked && a.dietaryCare === "no" && (
                   <>
@@ -538,8 +961,9 @@ export function Onboarding({
                 </button>
               </>
             ) : (
-              <p className="danger">
-                Faltan respuestas. Vuelve a las preguntas para completarlas.
+              <p className="danger" role="alert">
+                {previewError ||
+                  "Faltan respuestas. Vuelve a las preguntas para completarlas."}
               </p>
             )}
           </>
